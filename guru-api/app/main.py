@@ -186,7 +186,10 @@ def _lookup_choice(artist: str, title: str) -> dict:
     del file (es. 'Supermen'), mentre il job ha la stringa richiesta
     dall'utente (es. 'Superman') — si matcha per titolo + token artista."""
     try:
-        cache = json.loads(LOOKUP_CACHE.read_text())
+        raw = json.loads(LOOKUP_CACHE.read_text())
+        cache = raw.get("items", {}) if isinstance(raw, dict) and "__v" in raw else raw
+        if not isinstance(cache, dict):
+            return {}
     except (OSError, json.JSONDecodeError):
         return {}
     v = cache.get(f"{artist}|{title}")
