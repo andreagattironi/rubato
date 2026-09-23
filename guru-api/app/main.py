@@ -136,20 +136,27 @@ def _new_manifests(before: set[str]) -> list[Path]:
             if p.name not in before]
 
 
-def _manifest_touches_library(m: Path) -> bool:
-    """True se il manifest sposta/rimuove file GIA' in libreria
-    (rename/merge/drain di esistenti -> ghost -> serve full scan).
-    Le pure aggiunte (staging/downloads -> libreria) le vede il quick scan."""
+def _manifest_touches_library(m: Path) -> str:
+    """'full' se il manifest sposta/rimuove file GIA' in libreria
+    (rename/merge/drain di esistenti -> ghost -> serve full scan);
+    'quick' se aggiunge solo file nuovi (li vede lo scan incrementale);
+    'none' se non cambia la libreria. Illeggibile -> prudenza: 'full'."""
     try:
         ops = json.loads(m.read_text()).get("ops", [])
     except (json.JSONDecodeError, OSError):
-        return True  # illeggibile: prudenza, full scan
+        return "full"
+    adds = touches = False
     for op in ops:
-        if op.get("op") in ("trash", "rename", "move", "delete"):
-            for side in (op.get("src", ""), op.get("dest", "")):
-                if side.startswith(LIBRARY_PATH + "/"):
-                    return True
-    return False
+        src = op.get("src", "")
+        dest = op.get("dest", "")
+        if op.get("op") in ("trash", "rename", "move", "delete") \
+                and src.startswith(LIBRARY_PATH + "/"):
+            touches = True
+        if dest.startswith(LIBRARY_PATH + "/"):
+            adds = True
+    if touches:
+        return "full"
+    return "quick" if adds else "none"
 
 
 async def _import_worker(job_id: str, artist: str | None, full: bool) -> None:
@@ -168,17 +175,25 @@ async def _import_worker(job_id: str, artist: str | None, full: bool) -> None:
     before = {p.name for p in REPORTS_DIR.glob("*.manifest.json")}
     res = await run_cli(*args, timeout=3600)
     note.append(f"consolida rc={res['rc']}")
-    full_needed = full
-    if res["rc"] == 0 and not DRY_RUN and not full:
-        touched = [m for m in _new_manifests(before) if _manifest_touches_library(m)]
-        full_needed = bool(touched)
-        if touched:
-            note.append("full scan: manifest %s tocca file in libreria"
-                        % ", ".join(m.name for m in touched))
-    scan_info: dict = {"triggered": False, "full": full_needed}
-    if res["rc"] == 0 and not DRY_RUN and ND_USER and ND_PASS:
+    # Politica scan: Navidrome ha auto-scan ogni 6h, quindi di default
+    # non si triggera nulla; quick solo per rendere subito disponibili
+    # i file nuovi, full solo per purgare ghost (rename/merge di esistenti).
+    level = "none"
+    if res["rc"] == 0 and not DRY_RUN:
+        if full:
+            level = "full"
+        else:
+            levels = [_manifest_touches_library(m) for m in _new_manifests(before)]
+            if "full" in levels:
+                level = "full"
+            elif "quick" in levels:
+                level = "quick"
+        if level == "none":
+            note.append("scan: nessuno (libreria invariata, basta auto-scan 6h)")
+    scan_info: dict = {"triggered": False, "level": level}
+    if res["rc"] == 0 and not DRY_RUN and level != "none" and ND_USER and ND_PASS:
         try:
-            await nd_get("startScan", {"fullScan": "true" if full_needed else "false"})
+            await nd_get("startScan", {"fullScan": "true" if level == "full" else "false"})
             scan_info["triggered"] = True
             for _ in range(24):  # ~2 min; il quick finisce in secondi
                 await asyncio.sleep(5)
@@ -193,8 +208,6 @@ async def _import_worker(job_id: str, artist: str | None, full: bool) -> None:
             else:
                 scan_info["note"] = ("scan ancora in corso dopo ~2 min "
                                      "(tipico del full); ricontrolla getScanStatus")
-        except Exception as exc:  # noqa: BLE001 — riportato nel job
-            scan_info["error"] = str(exc)[:300]
         except Exception as exc:  # noqa: BLE001 — riportato nel job
             scan_info["error"] = str(exc)[:300]
     async with _lock:
