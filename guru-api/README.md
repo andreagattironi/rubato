@@ -12,7 +12,7 @@ matching/scan: delega via subprocess. Pi 4 condiviso → solo `asyncio`, niente 
 | `POST` | `/slskd/enqueue {artist,title,album?}` | job 202 → `fetch --strategy track` in background |
 | `GET` | `/slskd/status/{id}` | stato job persistito |
 | `GET` | `/slskd/queue` | passthrough read-only di `queue` |
-| `POST` | `/import {artist?}` | job 202 → `consolida` + full scan Navidrome server-side |
+| `POST` | `/import {artist?, full?}` | job 202 → `consolida` + scan Navidrome server-side (quick di default; full solo se il manifest tocca file già in libreria o se `full: true`) |
 
 Auth: `Authorization: Bearer <GURU_API_TOKEN>` su tutto tranne `/health`.
 

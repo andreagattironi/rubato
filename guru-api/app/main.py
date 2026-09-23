@@ -127,7 +127,32 @@ async def _fetch_worker(job_id: str, json_path: str) -> None:
         _save_jobs(jobs)
 
 
-async def _import_worker(job_id: str, artist: str | None) -> None:
+LIBRARY_PATH = os.environ.get("LIBRARY_PATH", "/mnt/music/library")
+REPORTS_DIR = MG_ROOT / "data" / "consolida_reports"
+
+
+def _new_manifests(before: set[str]) -> list[Path]:
+    return [p for p in REPORTS_DIR.glob("*.manifest.json")
+            if p.name not in before]
+
+
+def _manifest_touches_library(m: Path) -> bool:
+    """True se il manifest sposta/rimuove file GIA' in libreria
+    (rename/merge/drain di esistenti -> ghost -> serve full scan).
+    Le pure aggiunte (staging/downloads -> libreria) le vede il quick scan."""
+    try:
+        ops = json.loads(m.read_text()).get("ops", [])
+    except (json.JSONDecodeError, OSError):
+        return True  # illeggibile: prudenza, full scan
+    for op in ops:
+        if op.get("op") in ("trash", "rename", "move", "delete"):
+            for side in (op.get("src", ""), op.get("dest", "")):
+                if side.startswith(LIBRARY_PATH + "/"):
+                    return True
+    return False
+
+
+async def _import_worker(job_id: str, artist: str | None, full: bool) -> None:
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id]["status"] = "running"
@@ -140,24 +165,36 @@ async def _import_worker(job_id: str, artist: str | None) -> None:
         args = ["consolida", "--queue"]
     if not DRY_RUN:
         args.append("--commit")
+    before = {p.name for p in REPORTS_DIR.glob("*.manifest.json")}
     res = await run_cli(*args, timeout=3600)
     note.append(f"consolida rc={res['rc']}")
-    scan_info: dict = {"triggered": False}
+    full_needed = full
+    if res["rc"] == 0 and not DRY_RUN and not full:
+        touched = [m for m in _new_manifests(before) if _manifest_touches_library(m)]
+        full_needed = bool(touched)
+        if touched:
+            note.append("full scan: manifest %s tocca file in libreria"
+                        % ", ".join(m.name for m in touched))
+    scan_info: dict = {"triggered": False, "full": full_needed}
     if res["rc"] == 0 and not DRY_RUN and ND_USER and ND_PASS:
         try:
-            await nd_get("startScan", {"fullScan": "true"})
+            await nd_get("startScan", {"fullScan": "true" if full_needed else "false"})
             scan_info["triggered"] = True
-            for _ in range(60):  # max ~10 min di full scan
-                await asyncio.sleep(10)
+            for _ in range(24):  # ~2 min; il quick finisce in secondi
+                await asyncio.sleep(5)
                 st = await nd_get("getScanStatus")
                 ss = st.get("scanStatus", {})
                 if not ss.get("scanning", False):
                     scan_info.update(
                         {"scanning": False, "count": ss.get("count"),
-                         "scanType": ss.get("scanType")})
+                         "scanType": ss.get("scanType"),
+                         "lastScan": ss.get("lastScan")})
                     break
             else:
-                scan_info["note"] = "poll timeout, scan forse ancora in corso"
+                scan_info["note"] = ("scan ancora in corso dopo ~2 min "
+                                     "(tipico del full); ricontrolla getScanStatus")
+        except Exception as exc:  # noqa: BLE001 — riportato nel job
+            scan_info["error"] = str(exc)[:300]
         except Exception as exc:  # noqa: BLE001 — riportato nel job
             scan_info["error"] = str(exc)[:300]
     async with _lock:
@@ -179,6 +216,7 @@ class EnqueueReq(BaseModel):
 
 class ImportReq(BaseModel):
     artist: str | None = None
+    full: bool = False  # True = forza full scan (purge ghost)
 
 
 # --- routes -----------------------------------------------------------------------
@@ -265,14 +303,16 @@ async def slskd_queue(_: None = Depends(check_auth)) -> dict:
 
 @app.post("/import", status_code=202)
 async def import_job(req: ImportReq, _: None = Depends(check_auth)) -> dict:
-    """`consolida --queue|--commit` (+ full scan Navidrome) in background."""
+    """`consolida --queue|--commit` in background + scan Navidrome server-side
+    (quick di default; full solo se il manifest tocca file in libreria
+    o se `full: true`)."""
     job_id = secrets.token_hex(6)
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id] = {"kind": "import", "status": "queued",
-                        "artist": req.artist or "",
+                        "artist": req.artist or "", "full": req.full,
                         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                         "dry_run": DRY_RUN}
         _save_jobs(jobs)
-    asyncio.create_task(_import_worker(job_id, req.artist))
+    asyncio.create_task(_import_worker(job_id, req.artist, req.full))
     return {"job_id": job_id, "status": "queued", "dry_run": DRY_RUN}
