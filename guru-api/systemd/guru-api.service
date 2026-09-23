@@ -1,0 +1,18 @@
+[Unit]
+Description=guru-api (Rubato backend, FastAPI sopra music-guru)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=micho
+WorkingDirectory=/home/micho/guru-api
+EnvironmentFile=/home/micho/guru-api/.env
+ExecStart=/home/micho/guru-api/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+# il Pi 4 e' condiviso con Navidrome/slskd/*arr: niente Celery, solo asyncio
+MemoryMax=400M
+
+[Install]
+WantedBy=default.target
