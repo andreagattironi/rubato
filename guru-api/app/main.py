@@ -98,7 +98,11 @@ async def nd_get(path: str, extra: dict | None = None) -> dict:
     async with httpx.AsyncClient(timeout=30) as cli:
         r = await cli.get(url)
         r.raise_for_status()
-        return r.json().get("subsonic-response", {})
+        resp = r.json().get("subsonic-response", {})
+    if resp.get("status") != "ok":  # Navidrome: es. code 50 senza admin
+        err = resp.get("error", {})
+        raise RuntimeError(f"Navidrome {path}: {err.get('code')} {err.get('message')}")
+    return resp
 
 
 # --- background workers --------------------------------------------------------
