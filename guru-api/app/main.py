@@ -128,7 +128,96 @@ async def _fetch_worker(job_id: str, json_path: str) -> None:
 
 
 LIBRARY_PATH = os.environ.get("LIBRARY_PATH", "/mnt/music/library")
+DOWNLOADS_DIR = Path(os.environ.get("DOWNLOADS_DIR", "/mnt/music/downloads/slskd"))
+STAGING_ROOT = Path(os.environ.get("STAGING_ROOT", "/home/micho/guru-api/staging"))
 REPORTS_DIR = MG_ROOT / "data" / "consolida_reports"
+LOOKUP_CACHE = MG_ROOT / "data" / "staging_lookup_cache.json"
+STAGING_ROOT.mkdir(parents=True, exist_ok=True)
+
+AUDIO_EXT = (".flac", ".mp3", ".m4a", ".opus", ".ogg")
+
+_COMP_HINTS = ("now that's", "now ", "hits", "compilation", "remix",
+               "best of", "greatest", "collection", "vol.", "vol ", "mix",
+               "dance", "club", "ministry", "various")
+
+
+def _tokens(s: str) -> list[str]:
+    import re
+    return [t for t in re.sub(r"[^a-z0-9 ]", " ", s.lower()).split() if len(t) > 2]
+
+
+def _looks_compilation(name: str) -> bool:
+    n = name.lower()
+    return any(h in n for h in _COMP_HINTS)
+
+
+def _find_downloads(artist: str, title: str, since_ts: float) -> list[Path]:
+    """File audio in downloads nuovi (mtime >= since) che contengono
+    tutti i token del titolo (euristica di isolamento per job)."""
+    want = _tokens(title)
+    if not want:
+        return []
+    out = []
+    if not DOWNLOADS_DIR.is_dir():
+        return out
+    for p in DOWNLOADS_DIR.rglob("*"):
+        if not (p.is_file() and p.suffix.lower() in AUDIO_EXT):
+            continue
+        try:
+            if p.stat().st_mtime < since_ts:
+                continue
+        except OSError:
+            continue
+        fn = " ".join(_tokens(p.name))
+        if all(t in fn for t in want):
+            out.append(p)
+    return sorted(out)
+
+
+def _parse_retag_dest(stdout: str) -> list[str]:
+    """Estrae le destinazioni `a: ...` dal report di retag --staging."""
+    import re
+    return re.findall(r"^\s*a:\s+(.+)$", stdout, re.M)
+
+
+def _lookup_choice(artist: str, title: str) -> dict:
+    """Legge l'album scelto dal lookup (staging_lookup_cache.json).
+    Match tollerante: la chiave cache usa l'artista canonizzato dai tag
+    del file (es. 'Supermen'), mentre il job ha la stringa richiesta
+    dall'utente (es. 'Superman') — si matcha per titolo + token artista."""
+    try:
+        cache = json.loads(LOOKUP_CACHE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    v = cache.get(f"{artist}|{title}")
+    if isinstance(v, dict):
+        return {"album": v.get("album", ""), "year": v.get("year", ""),
+                "track_number": v.get("track_number", "")}
+    atoks = set(_tokens(artist))
+    for k, vv in cache.items():
+        ka, _, kt = k.partition("|")
+        if kt.casefold() == title.casefold() and isinstance(vv, dict) \
+                and (atoks & set(_tokens(ka))):
+            return {"album": vv.get("album", ""), "year": vv.get("year", ""),
+                    "track_number": vv.get("track_number", ""),
+                    "cache_key": k}
+    return {}
+
+
+def _library_has(artist: str, title: str) -> list[str]:
+    """File audio in libreria che matchano artista+titolo (anti-duplicati:
+    un fetch-job già importato non viene re-importato)."""
+    wt, wa = _tokens(title), set(_tokens(artist))
+    out = []
+    if not wt or not LIBRARY_PATH or not Path(LIBRARY_PATH).is_dir():
+        return out
+    for p in Path(LIBRARY_PATH).rglob("*"):
+        if not (p.is_file() and p.suffix.lower() in AUDIO_EXT):
+            continue
+        fn = _tokens(p.name)
+        if all(t in fn for t in wt) and (wa & set(fn)):
+            out.append(str(p))
+    return sorted(out)[:10]
 
 
 def _new_manifests(before: set[str]) -> list[Path]:
@@ -159,13 +248,74 @@ def _manifest_touches_library(m: Path) -> str:
     return "quick" if adds else "none"
 
 
-async def _import_worker(job_id: str, artist: str | None, full: bool) -> None:
+async def _import_worker(job_id: str, artist: str | None, full: bool,
+                       fetch_job_id: str | None) -> None:
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id]["status"] = "running"
         jobs[job_id]["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         _save_jobs(jobs)
     note: list[str] = []
+    staging_info: dict = {}
+    # Fase 0 — staging+retag per un fetch-job: isola i suoi file in una
+    # staging dedicata e lancia `retag --staging` (crea cartella artista
+    # da MusicBrainz, drena compilation). Mai tutto downloads/.
+    if fetch_job_id:
+        fjobs = _load_jobs()
+        fj = fjobs.get(fetch_job_id, {})
+        fart, ftitle = fj.get("artist", ""), fj.get("title", "")
+        already = _library_has(fart, ftitle) if fj.get("status") == "done" else []
+        staging_info = {"fetch_job": fetch_job_id}
+        if already:
+            staging_info["already_in_library"] = already
+            note.append("staging: già in libreria, skip re-import "
+                        f"({len(already)} match)")
+            cands = []
+        else:
+            try:
+                since = time.mktime(time.strptime(
+                    fj.get("created_at", "2000-01-01T00:00:00"), "%Y-%m-%dT%H:%M:%S")) - 300
+            except ValueError:
+                since = 0
+            cands = _find_downloads(fart, ftitle, since) if fj.get("status") == "done" else []
+        staging_info["candidates"] = [str(p) for p in cands]
+        if cands:
+            import shutil
+            stage = STAGING_ROOT / fetch_job_id
+            stage.mkdir(parents=True, exist_ok=True)
+            src_release = cands[0].parent.name
+            for p in cands:
+                dst = stage / p.name
+                if not dst.exists():
+                    shutil.copy2(p, dst)
+            staging_info["source_release"] = src_release
+            staging_info["source_is_comp"] = _looks_compilation(src_release)
+            rargs = ["retag", "--staging", str(stage)]
+            if not DRY_RUN:
+                rargs.append("--commit")
+            rres = await run_cli(*rargs, timeout=1800)
+            staging_info["retag_rc"] = rres["rc"]
+            staging_info["dest"] = _parse_retag_dest(rres["stdout"])
+            import re as _re
+            m = _re.search(r"Spostati:\s*(\d+),\s*Dup:\s*(\d+)", rres["stdout"])
+            if m:
+                staging_info["moved"] = int(m.group(1))
+                staging_info["dup"] = int(m.group(2))
+            choice = _lookup_choice(fart, ftitle)
+            staging_info["chosen"] = choice
+            calbum = choice.get("album", "")
+            staging_info["chosen_is_comp"] = _looks_compilation(calbum) if calbum else False
+            staging_info["comp_to_comp"] = bool(
+                staging_info["source_is_comp"] and staging_info["chosen_is_comp"])
+            if fj.get("album") and calbum and fj["album"].lower() != calbum.lower():
+                staging_info["album_mismatch"] = {
+                    "requested": fj["album"], "chosen": calbum}
+            note.append(f"retag --staging rc={rres['rc']} dest={staging_info['dest']}")
+            if staging_info["comp_to_comp"]:
+                note.append("ATTENZIONE: compilation -> compilation, verificare album")
+        else:
+            if "already_in_library" not in staging_info:
+                note.append("staging: nessun file del fetch-job trovato in downloads")
     if artist:
         args = ["consolida", artist]
     else:
@@ -217,6 +367,8 @@ async def _import_worker(job_id: str, artist: str | None, full: bool) -> None:
         jobs[job_id]["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         jobs[job_id]["cli_tail"] = res["stdout"][-1500:] + "\n" + "\n".join(note)
         jobs[job_id]["scan"] = scan_info
+        if staging_info:
+            jobs[job_id]["staging"] = staging_info
         _save_jobs(jobs)
 
 
@@ -230,6 +382,7 @@ class EnqueueReq(BaseModel):
 class ImportReq(BaseModel):
     artist: str | None = None
     full: bool = False  # True = forza full scan (purge ghost)
+    job_id: str | None = None  # fetch-job da importare via staging+retag
 
 
 # --- routes -----------------------------------------------------------------------
@@ -316,16 +469,18 @@ async def slskd_queue(_: None = Depends(check_auth)) -> dict:
 
 @app.post("/import", status_code=202)
 async def import_job(req: ImportReq, _: None = Depends(check_auth)) -> dict:
-    """`consolida --queue|--commit` in background + scan Navidrome server-side
-    (quick di default; full solo se il manifest tocca file in libreria
-    o se `full: true`)."""
+    """In background: [staging+retag del fetch-job] + `consolida` +
+    scan Navidrome server-side (none/quick/full da manifest, `full: true`
+    forza). Con `job_id` i file del download vengono isolati in staging
+    dedicata e passati a `retag --staging` (mai tutto downloads/)."""
     job_id = secrets.token_hex(6)
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id] = {"kind": "import", "status": "queued",
                         "artist": req.artist or "", "full": req.full,
+                        "fetch_job": req.job_id or "",
                         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                         "dry_run": DRY_RUN}
         _save_jobs(jobs)
-    asyncio.create_task(_import_worker(job_id, req.artist, req.full))
+    asyncio.create_task(_import_worker(job_id, req.artist, req.full, req.job_id))
     return {"job_id": job_id, "status": "queued", "dry_run": DRY_RUN}
