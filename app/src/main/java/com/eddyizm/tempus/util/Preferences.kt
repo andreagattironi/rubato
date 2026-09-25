@@ -133,6 +133,8 @@ object Preferences {
     private const val AA_SHUFFLE_PLAYLISTS = "androidauto_shuffle_playlists"
     private const val AA_SHUFFLE_DOWNLOADED_TRACKS = "androidauto_shuffle_downloaded_tracks"
     private const val ACTIVE_MUSIC_FOLDER_ID = "active_music_folder_id"
+    private const val GURU_URL = "guru_url"
+    private const val GURU_TOKEN = "guru_token"
 
     const val MUSIC_FOLDER_ALL = "default"
 
@@ -174,6 +176,33 @@ object Preferences {
         val key = activeMusicFolderKey() ?: return
         App.getInstance().preferences.edit()
             .putString(key, musicFolderId ?: MUSIC_FOLDER_ALL).apply()
+    }
+
+    @JvmStatic
+    fun getGuruUrl(): String? {
+        return App.getInstance().preferences.getString(GURU_URL, null)?.takeIf { it.isNotBlank() }
+    }
+
+    @JvmStatic
+    fun setGuruUrl(url: String?) {
+        App.getInstance().preferences.edit().putString(GURU_URL, url?.trim()).apply()
+        com.Rubato.api.GuruClient.reset()
+    }
+
+    @JvmStatic
+    fun getGuruToken(): String? {
+        return App.getInstance().preferences.getString(GURU_TOKEN, null)?.takeIf { it.isNotBlank() }
+    }
+
+    @JvmStatic
+    fun setGuruToken(token: String?) {
+        App.getInstance().preferences.edit().putString(GURU_TOKEN, token?.trim()).apply()
+        com.Rubato.api.GuruClient.reset()
+    }
+
+    @JvmStatic
+    fun isGuruConfigured(): Boolean {
+        return !getGuruUrl().isNullOrBlank() && !getGuruToken().isNullOrBlank()
     }
 
     @JvmStatic

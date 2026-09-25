@@ -197,10 +197,19 @@ def _lookup_choice(artist: str, title: str) -> dict:
         return {"album": v.get("album", ""), "year": v.get("year", ""),
                 "track_number": v.get("track_number", "")}
     atoks = set(_tokens(artist))
+    ttoks = set(_tokens(title))
     for k, vv in cache.items():
+        if not isinstance(vv, dict):
+            continue
         ka, _, kt = k.partition("|")
-        if kt.casefold() == title.casefold() and isinstance(vv, dict) \
-                and (atoks & set(_tokens(ka))):
+        if not kt:
+            continue
+        ktoks = set(_tokens(kt))
+        # titolo uguale oppure uno contiene l'altro (versioni/live/bonus),
+        # più almeno un token artista in comune
+        title_ok = (kt.casefold() == title.casefold()
+                    or ttoks <= ktoks or ktoks <= ttoks)
+        if title_ok and (atoks & set(_tokens(ka))):
             return {"album": vv.get("album", ""), "year": vv.get("year", ""),
                     "track_number": vv.get("track_number", ""),
                     "cache_key": k}
@@ -291,6 +300,9 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
                 dst = stage / p.name
                 if not dst.exists():
                     shutil.copy2(p, dst)
+            staged = [q for q in stage.rglob("*") if q.is_file()
+                      and q.suffix.lower() in AUDIO_EXT]
+            staging_info["staged_count"] = len(staged)
             staging_info["source_release"] = src_release
             staging_info["source_is_comp"] = _looks_compilation(src_release)
             rargs = ["retag", "--staging", str(stage)]
@@ -304,6 +316,12 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
             if m:
                 staging_info["moved"] = int(m.group(1))
                 staging_info["dup"] = int(m.group(2))
+            # segnale deterministico: file rimasti in staging dopo il run
+            # (retag di successo la svuota/elimina)
+            left = [q for q in stage.rglob("*") if q.is_file()] if stage.exists() else []
+            staging_info["staged_left"] = len(left)
+            if not stage.exists() or not left:
+                staging_info["moved"] = staging_info.get("staged_count", 0)
             choice = _lookup_choice(fart, ftitle)
             staging_info["chosen"] = choice
             calbum = choice.get("album", "")
@@ -332,6 +350,7 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
     # non si triggera nulla; quick solo per rendere subito disponibili
     # i file nuovi, full solo per purgare ghost (rename/merge di esistenti).
     level = "none"
+    staged_moved = staging_info.get("moved", 0) > 0 or bool(staging_info.get("dest"))
     if res["rc"] == 0 and not DRY_RUN:
         if full:
             level = "full"
@@ -339,7 +358,9 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
             levels = [_manifest_touches_library(m) for m in _new_manifests(before)]
             if "full" in levels:
                 level = "full"
-            elif "quick" in levels:
+            elif "quick" in levels or staged_moved:
+                # staging+retag sposta file nuovi in libreria senza manifest
+                # consolida: serve comunque il quick per indicizzarli subito
                 level = "quick"
         if level == "none":
             note.append("scan: nessuno (libreria invariata, basta auto-scan 6h)")

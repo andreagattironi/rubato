@@ -145,6 +145,11 @@
             app:destination="@id/playlistCatalogueFragment" />
     </fragment>
     <fragment
+        android:id="@+id/discoveryFragment"
+        android:name="com.Rubato.ui.discovery.DiscoveryFragment"
+        android:label="DiscoveryFragment"
+        tools:layout="@layout/fragment_discovery" />
+    <fragment
         android:id="@+id/settingsFragment"
         android:name="com.eddyizm.tempus.ui.fragment.SettingsFragment"
         android:label="SettingsFragment"

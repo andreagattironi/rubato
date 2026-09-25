@@ -188,6 +188,7 @@ public class SettingsContainerFragment extends PreferenceFragmentCompat {
         actionKeepScreenOn();
         actionAutoDownloadLyrics();
         actionMiniPlayerHeart();
+        actionGuruSettings();
 
         bindMediaService();
         actionBuiltinEqualizer();
@@ -802,8 +803,25 @@ public class SettingsContainerFragment extends PreferenceFragmentCompat {
         });
     }
 
-    private void actionMiniPlayerHeart() {
-        SwitchPreference preference = findPreference("mini_shuffle_button_visibility");
+    private void actionGuruSettings() {
+        EditTextPreference guruUrl = findPreference("guru_url");
+        if (guruUrl != null) {
+            guruUrl.setSummaryProvider(EditTextPreference.SimpleSummaryProvider.getInstance());
+            guruUrl.setOnPreferenceChangeListener((preference, newValue) -> {
+                Preferences.setGuruUrl((String) newValue);
+                return true;
+            });
+        }
+        EditTextPreference guruToken = findPreference("guru_token");
+        if (guruToken != null) {
+            guruToken.setOnPreferenceChangeListener((preference, newValue) -> {
+                Preferences.setGuruToken((String) newValue);
+                return true;
+            });
+        }
+    }
+
+    private void actionMiniPlayerHeart() {        SwitchPreference preference = findPreference("mini_shuffle_button_visibility");
         if (preference == null) {
             return;
         }

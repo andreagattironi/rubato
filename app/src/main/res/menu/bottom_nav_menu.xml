@@ -13,4 +13,8 @@
         android:id="@+id/downloadFragment"
         android:icon="@drawable/ic_play_for_work"
         android:title="@string/menu_download_label" />
+    <item
+        android:id="@+id/discoveryFragment"
+        android:icon="@drawable/ic_search"
+        android:title="@string/menu_discovery_label" />
 </menu>

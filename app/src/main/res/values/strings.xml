@@ -576,6 +576,25 @@
     <string name="settings_dark_theme_style">Dark theme style</string>
     <string name="settings_tile_size">Tiles size</string>
     <string name="settings_title_data">Data</string>
+    <string name="settings_title_rubato">Rubato (Soulseek download)</string>
+    <string name="settings_guru_url_title">guru-api URL</string>
+    <string name="settings_guru_url_summary">Base URL of guru-api on the Pi, e.g. https://music.example.com:8000</string>
+    <string name="settings_guru_url_dialog">guru-api URL</string>
+    <string name="settings_guru_token_title">guru-api token</string>
+    <string name="settings_guru_token_summary">Bearer token from ~/guru-api/.env (GURU_API_TOKEN)</string>
+    <string name="settings_guru_token_dialog">guru-api token</string>
+    <string name="guru_enqueue_queued">Queued — will notify when playable</string>
+    <string name="guru_enqueue_failed">Could not queue download</string>
+    <string name="guru_not_configured">Configure guru-api URL and token in Settings first</string>
+    <string name="guru_job_title">Soulseek download</string>
+    <string name="song_bottom_sheet_guru_download">Download via Soulseek (to library)</string>    <string name="guru_job_done">Ready to play</string>
+    <string name="guru_job_failed">Download failed</string>
+    <string name="guru_job_progress">Downloading via Soulseek…</string>
+    <string name="menu_discovery_label">Discovery</string>
+    <string name="discovery_hint">Search new music to download…</string>
+    <string name="discovery_empty">Search above for music outside your library</string>
+    <string name="discovery_error">Discovery error: %1$s</string>
+    <string name="discovery_cover_desc">Album art</string>
     <string name="settings_title_general">General</string>
     <string name="settings_title_misc">Miscellaneous</string>
     <string name="settings_title_players">Players</string>

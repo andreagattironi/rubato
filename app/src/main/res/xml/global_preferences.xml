@@ -26,6 +26,24 @@
             android:defaultValue="2" />
     </com.eddyizm.tempus.util.ClickablePreferenceCategory>
 
+    <com.eddyizm.tempus.util.ClickablePreferenceCategory app:title="@string/settings_title_rubato">
+        <EditTextPreference
+            android:key="guru_url"
+            android:title="@string/settings_guru_url_title"
+            app:summary="@string/settings_guru_url_summary"
+            android:dialogTitle="@string/settings_guru_url_dialog"
+            android:inputType="textUri"
+            android:singleLine="true" />
+
+        <EditTextPreference
+            android:key="guru_token"
+            android:title="@string/settings_guru_token_title"
+            app:summary="@string/settings_guru_token_summary"
+            android:dialogTitle="@string/settings_guru_token_dialog"
+            android:inputType="textPassword"
+            android:singleLine="true" />
+    </com.eddyizm.tempus.util.ClickablePreferenceCategory>
+
     <com.eddyizm.tempus.util.ClickablePreferenceCategory app:title="@string/settings_title_ui">
         <ListPreference
             android:layout_height="match_parent"

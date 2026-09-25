@@ -227,8 +227,15 @@ public class SongBottomSheetDialog extends BottomSheetDialogFragment implements 
             dismissBottomSheet();
         });
 
-        removeButton = view.findViewById(R.id.remove_text_view);
-        removeButton.setOnClickListener(v -> {
+        TextView guruDownloadButton = view.findViewById(R.id.guru_download_text_view);
+        guruDownloadButton.setVisibility(
+                com.eddyizm.tempus.util.Preferences.isGuruConfigured() ? View.VISIBLE : View.GONE);
+        guruDownloadButton.setOnClickListener(v -> {
+            enqueueViaGuru();
+            dismissBottomSheet();
+        });
+
+        removeButton = view.findViewById(R.id.remove_text_view);        removeButton.setOnClickListener(v -> {
             if (Preferences.getDownloadDirectoryUri() == null) {
                 DownloadUtil.getDownloadTracker(requireContext()).remove(
                         MappingUtil.mapDownload(song),
@@ -357,6 +364,53 @@ public class SongBottomSheetDialog extends BottomSheetDialogFragment implements 
 
     private void dismissBottomSheet() {
         dismiss();
+    }
+
+    /**
+     * Rubato: enqueue this track on guru-api (Pi downloads via Soulseek),
+     * then watch the job with GuruPollWorker (notify when playable).
+     */
+    private void enqueueViaGuru() {
+        if (!com.eddyizm.tempus.util.Preferences.isGuruConfigured()) {
+            Log.d(TAG, "enqueueViaGuru: guru not configured");
+            Toast.makeText(requireContext(), R.string.guru_not_configured, Toast.LENGTH_LONG).show();
+            return;
+        }
+        String artist = song != null ? song.getArtist() : null;
+        String title = song != null ? song.getTitle() : null;
+        Log.d(TAG, "enqueueViaGuru: artist=" + artist + " title=" + title);
+        if (artist == null || artist.isEmpty() || title == null || title.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String album = song.getAlbum();
+        com.Rubato.api.GuruClient.getInstance()
+                .enqueue(artist, title, album)
+                .enqueue(new retrofit2.Callback<com.Rubato.api.model.GuruJobAccepted>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<com.Rubato.api.model.GuruJobAccepted> call,
+                                           retrofit2.Response<com.Rubato.api.model.GuruJobAccepted> response) {
+                        Log.d(TAG, "enqueueViaGuru: http=" + response.code());
+                        if (!isAdded() || response.body() == null || response.body().jobId == null) {
+                            if (isAdded()) {
+                                Toast.makeText(requireContext(), R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
+                            }
+                            return;
+                        }
+                        com.Rubato.work.GuruPollWorker.watchFetchJob(
+                                requireContext().getApplicationContext(),
+                                response.body().jobId, artist, title);
+                        Toast.makeText(requireContext(), R.string.guru_enqueue_queued, Toast.LENGTH_LONG).show();
+                    }
+
+                    @Override
+                    public void onFailure(retrofit2.Call<com.Rubato.api.model.GuruJobAccepted> call, Throwable t) {
+                        Log.w(TAG, "guru enqueue failed", t);
+                        if (isAdded()) {
+                            Toast.makeText(requireContext(), R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
     }
 
     private void updateDownloadButtons() {
