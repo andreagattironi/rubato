@@ -5,10 +5,13 @@ import android.util.Log;
 import com.eddyizm.tempus.BuildConfig;
 import com.eddyizm.tempus.util.Preferences;
 import com.Rubato.api.model.GuruDiscoverResponse;
+import com.Rubato.api.model.GuruAlbumTracks;
+import com.Rubato.api.model.GuruEnqueueAlbumRequest;
 import com.Rubato.api.model.GuruEnqueueRequest;
 import com.Rubato.api.model.GuruImportRequest;
 import com.Rubato.api.model.GuruJobAccepted;
 import com.Rubato.api.model.GuruJobStatus;
+import com.Rubato.api.model.GuruRecommendResponse;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -91,6 +94,25 @@ public class GuruClient {
     public Call<GuruDiscoverResponse> discover(String query, String artist) {
         Log.d(TAG, "discover: " + query);
         return service.discover(query, artist);
+    }
+
+    public Call<GuruDiscoverResponse> discoverByType(String query, String type) {
+        Log.d(TAG, "discover " + type + ": " + query);
+        return service.discover(query, null, type);
+    }
+
+    public Call<GuruAlbumTracks> albumTracks(long albumId) {
+        return service.albumTracks(albumId);
+    }
+
+    public Call<GuruRecommendResponse> recommend(String artist, int count) {
+        return service.recommend(artist, count);
+    }
+
+    public Call<GuruJobAccepted> enqueueAlbum(String artist, String album,
+                                              java.util.List<String> tracks) {
+        Log.d(TAG, "enqueueAlbum: " + artist + " - " + album + " (" + tracks.size() + ")");
+        return service.enqueueAlbum(new GuruEnqueueAlbumRequest(artist, album, tracks));
     }
 
     public Call<GuruJobAccepted> enqueue(String artist, String title, String album) {

@@ -595,6 +595,11 @@
     <string name="discovery_empty">Search above for music outside your library</string>
     <string name="discovery_error">Discovery error: %1$s</string>
     <string name="discovery_cover_desc">Album art</string>
+    <string name="discovery_mode_songs">Songs</string>
+    <string name="discovery_mode_albums">Albums</string>
+    <string name="discovery_because">Because you listen to %1$s</string>
+    <string name="discovery_owned">Already in library: %1$s</string>
+    <string name="guru_album_loading">Loading album tracks…</string>
     <string name="settings_title_general">General</string>
     <string name="settings_title_misc">Miscellaneous</string>
     <string name="settings_title_players">Players</string>

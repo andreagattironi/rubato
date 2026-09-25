@@ -11,6 +11,40 @@
         android:iconifiedByDefault="false"
         android:queryHint="@string/discovery_hint" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <Button
+            android:id="@+id/discovery_mode_songs"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="@string/discovery_mode_songs" />
+
+        <Button
+            android:id="@+id/discovery_mode_albums"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/discovery_mode_albums" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/discovery_section_header"
+        style="@style/LabelMedium"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">

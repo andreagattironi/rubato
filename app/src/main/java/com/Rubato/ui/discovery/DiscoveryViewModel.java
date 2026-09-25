@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel;
 
 import com.Rubato.api.GuruClient;
 import com.Rubato.api.model.GuruDiscoverResponse;
+import com.Rubato.api.model.GuruRecommendResponse;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -14,13 +16,19 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/** Ricerca catalogo esterno via guru-api /discover (Deezer). */
+/** Ricerca catalogo esterno (track/album) + consigliati (owned/missing). */
 public class DiscoveryViewModel extends ViewModel {
+
+    public enum Mode { TRACKS, ALBUMS }
 
     private final MutableLiveData<List<GuruDiscoverResponse.GuruTrack>> tracks =
             new MutableLiveData<>(Collections.emptyList());
     private final MutableLiveData<Boolean> loading = new MutableLiveData<>(false);
     private final MutableLiveData<String> error = new MutableLiveData<>(null);
+    private final MutableLiveData<GuruRecommendResponse> recommend =
+            new MutableLiveData<>(null);
+    private final MutableLiveData<Mode> mode = new MutableLiveData<>(Mode.TRACKS);
+    private String lastQuery = "";
 
     public LiveData<List<GuruDiscoverResponse.GuruTrack>> getTracks() {
         return tracks;
@@ -34,28 +42,69 @@ public class DiscoveryViewModel extends ViewModel {
         return error;
     }
 
+    public LiveData<GuruRecommendResponse> getRecommend() {
+        return recommend;
+    }
+
+    public LiveData<Mode> getMode() {
+        return mode;
+    }
+
+    public void setMode(Mode m) {
+        mode.setValue(m);
+        if (!lastQuery.isEmpty()) search(lastQuery);
+        else if (m == Mode.TRACKS) loadRecommend();
+        else {
+            recommend.setValue(null);
+            tracks.setValue(Collections.emptyList());
+            error.setValue(null);
+        }
+    }
+
     public void search(String query) {
-        if (query == null || query.trim().length() < 2) return;
+        lastQuery = query != null ? query.trim() : "";
+        recommend.setValue(null);
+        if (lastQuery.length() < 2) {
+            tracks.setValue(Collections.emptyList());
+            error.setValue(null);
+            if (mode.getValue() == Mode.TRACKS) loadRecommend();
+            return;
+        }
         if (!GuruClient.isConfigured()) {
             error.setValue("configure");
             return;
         }
         loading.setValue(true);
         error.setValue(null);
-        GuruClient.getInstance().discover(query.trim(), null)
+        String type = mode.getValue() == Mode.ALBUMS ? "album" : "track";
+        GuruClient.getInstance().discoverByType(lastQuery, type)
                 .enqueue(new Callback<GuruDiscoverResponse>() {
                     @Override
                     public void onResponse(Call<GuruDiscoverResponse> call,
                                            Response<GuruDiscoverResponse> response) {
                         loading.setValue(false);
-                        if (response.body() != null && response.body().tracks != null) {
-                            tracks.setValue(response.body().tracks);
-                            if (response.body().tracks.isEmpty()) {
-                                error.setValue("empty");
+                        List<GuruDiscoverResponse.GuruTrack> rows = new ArrayList<>();
+                        if (response.body() != null) {
+                            if (response.body().tracks != null) {
+                                rows.addAll(response.body().tracks);
                             }
-                        } else {
-                            error.setValue("http-" + response.code());
+                            if (response.body().albums != null) {
+                                for (GuruDiscoverResponse.GuruAlbum a : response.body().albums) {
+                                    GuruDiscoverResponse.GuruTrack r =
+                                            new GuruDiscoverResponse.GuruTrack();
+                                    r.id = a.id;
+                                    r.albumId = a.id;
+                                    r.title = a.title;
+                                    r.artist = a.artist;
+                                    r.album = a.title;
+                                    r.cover = a.cover;
+                                    r.deezerLink = a.deezerLink;
+                                    rows.add(r);
+                                }
+                            }
                         }
+                        tracks.setValue(rows);
+                        if (rows.isEmpty()) error.setValue("empty");
                     }
 
                     @Override
@@ -64,5 +113,52 @@ public class DiscoveryViewModel extends ViewModel {
                         error.setValue("net");
                     }
                 });
+    }
+
+    public void loadRecommend() {
+        if (!GuruClient.isConfigured()) {
+            error.setValue("configure");
+            return;
+        }
+        loading.setValue(true);
+        GuruClient.getInstance().recommend(null, 8)
+                .enqueue(new Callback<GuruRecommendResponse>() {
+                    @Override
+                    public void onResponse(Call<GuruRecommendResponse> call,
+                                           Response<GuruRecommendResponse> response) {
+                        loading.setValue(false);
+                        if (response.body() != null) {
+                            recommend.setValue(response.body());
+                            showMissing(response.body());
+                        } else {
+                            error.setValue("http-" + response.code());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<GuruRecommendResponse> call, Throwable t) {
+                        loading.setValue(false);
+                        error.setValue("net");
+                    }
+                });
+    }
+
+    /** Missing -> righe scaricabili (top track); owned restano nell'header. */
+    private void showMissing(GuruRecommendResponse rec) {
+        List<GuruDiscoverResponse.GuruTrack> rows = new ArrayList<>();
+        if (rec.missing != null) {
+            for (GuruRecommendResponse.RecommendArtist a : rec.missing) {
+                String title = a.bestTrackTitle();
+                if (title == null) continue;
+                GuruDiscoverResponse.GuruTrack r = new GuruDiscoverResponse.GuruTrack();
+                r.title = title;
+                r.artist = a.name;
+                r.album = "";
+                r.cover = a.cover != null ? a.cover : "";
+                rows.add(r);
+            }
+        }
+        tracks.setValue(rows);
+        error.setValue(rows.isEmpty() ? "empty" : null);
     }
 }

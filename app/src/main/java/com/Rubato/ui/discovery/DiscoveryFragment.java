@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,22 +20,30 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.eddyizm.tempus.R;
 import com.eddyizm.tempus.util.Preferences;
 import com.Rubato.api.GuruClient;
+import com.Rubato.api.model.GuruAlbumTracks;
 import com.Rubato.api.model.GuruDiscoverResponse;
 import com.Rubato.api.model.GuruJobAccepted;
+import com.Rubato.api.model.GuruRecommendResponse;
 import com.Rubato.work.GuruPollWorker;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/** Tab Discovery: cerca nel catalogo esterno (Deezer via guru-api) e
- * scarica con ⬇ anche brani NON in libreria. */
+/** Tab Discovery: brani/album fuori libreria (Deezer) + consigliati
+ * (owned in libreria vs missing da scaricare). */
 public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter.Listener {
 
     private DiscoveryViewModel viewModel;
     private DiscoveryTrackAdapter adapter;
     private ProgressBar progress;
     private TextView emptyView;
+    private TextView sectionHeader;
+    private Button songsButton;
+    private Button albumsButton;
 
     @Nullable
     @Override
@@ -64,6 +73,13 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
                 return false;
             }
         });
+
+        songsButton = view.findViewById(R.id.discovery_mode_songs);
+        albumsButton = view.findViewById(R.id.discovery_mode_albums);
+        songsButton.setOnClickListener(v -> viewModel.setMode(DiscoveryViewModel.Mode.TRACKS));
+        albumsButton.setOnClickListener(v -> viewModel.setMode(DiscoveryViewModel.Mode.ALBUMS));
+
+        sectionHeader = view.findViewById(R.id.discovery_section_header);
 
         RecyclerView list = view.findViewById(R.id.discovery_recycler_view);
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -98,11 +114,52 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
                     break;
             }
         });
+        viewModel.getMode().observe(getViewLifecycleOwner(), mode -> {
+            boolean albums = mode == DiscoveryViewModel.Mode.ALBUMS;
+            songsButton.setEnabled(!albums);
+            albumsButton.setEnabled(albums);
+            sectionHeader.setVisibility(View.GONE);
+        });
+        viewModel.getRecommend().observe(getViewLifecycleOwner(), rec -> {
+            if (rec == null) {
+                sectionHeader.setVisibility(View.GONE);
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            if (rec.seeds != null && !rec.seeds.isEmpty()) {
+                sb.append(getString(R.string.discovery_because, join(rec.seeds)));
+            }
+            if (rec.owned != null && !rec.owned.isEmpty()) {
+                if (sb.length() > 0) sb.append("\n");
+                sb.append(getString(R.string.discovery_owned, joinNames(rec.owned)));
+            }
+            if (sb.length() > 0) {
+                sectionHeader.setText(sb.toString());
+                sectionHeader.setVisibility(View.VISIBLE);
+            } else {
+                sectionHeader.setVisibility(View.GONE);
+            }
+        });
 
         if (!Preferences.isGuruConfigured()) {
             emptyView.setVisibility(View.VISIBLE);
             emptyView.setText(R.string.guru_not_configured);
         }
+    }
+
+    private String join(List<String> items) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < items.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(items.get(i));
+        }
+        return sb.toString();
+    }
+
+    private String joinNames(List<GuruRecommendResponse.RecommendArtist> items) {
+        List<String> names = new ArrayList<>();
+        for (GuruRecommendResponse.RecommendArtist a : items) names.add(a.name);
+        return join(names);
     }
 
     @Override
@@ -115,14 +172,20 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
             Toast.makeText(requireContext(), R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
             return;
         }
+        if (track.albumId > 0) {
+            downloadAlbum(track);
+            return;
+        }
         GuruClient.getInstance().enqueue(track.artist, track.title, track.album)
                 .enqueue(new Callback<GuruJobAccepted>() {
                     @Override
                     public void onResponse(Call<GuruJobAccepted> call,
                                            Response<GuruJobAccepted> response) {
-                        if (response.body() == null || response.body().jobId == null) {
-                            Toast.makeText(requireContext(),
-                                    R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
+                        if (!isAdded() || response.body() == null || response.body().jobId == null) {
+                            if (isAdded()) {
+                                Toast.makeText(requireContext(),
+                                        R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
+                            }
                             return;
                         }
                         GuruPollWorker.watchFetchJob(
@@ -134,6 +197,74 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
 
                     @Override
                     public void onFailure(Call<GuruJobAccepted> call, Throwable t) {
+                        if (isAdded()) {
+                            Toast.makeText(requireContext(),
+                                    R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
+    /** ⬇ su un album: tracklist Deezer -> un job per tutto l'album. */
+    private void downloadAlbum(GuruDiscoverResponse.GuruTrack track) {
+        Toast.makeText(requireContext(), R.string.guru_album_loading, Toast.LENGTH_SHORT).show();
+        GuruClient.getInstance().albumTracks(track.albumId)
+                .enqueue(new Callback<GuruAlbumTracks>() {
+                    @Override
+                    public void onResponse(Call<GuruAlbumTracks> call,
+                                           Response<GuruAlbumTracks> response) {
+                        if (!isAdded() || response.body() == null
+                                || response.body().tracks == null
+                                || response.body().tracks.isEmpty()) {
+                            if (isAdded()) {
+                                Toast.makeText(requireContext(),
+                                        R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
+                            }
+                            return;
+                        }
+                        List<String> titles = new ArrayList<>();
+                        for (GuruAlbumTracks.AlbumTrack t : response.body().tracks) {
+                            if (t.title != null && !t.title.isEmpty()) titles.add(t.title);
+                        }
+                        String artist = response.body().artist != null
+                                && !response.body().artist.isEmpty()
+                                ? response.body().artist : track.artist;
+                        GuruClient.getInstance()
+                                .enqueueAlbum(artist, response.body().title, titles)
+                                .enqueue(new Callback<GuruJobAccepted>() {
+                                    @Override
+                                    public void onResponse(Call<GuruJobAccepted> call2,
+                                                           Response<GuruJobAccepted> response2) {
+                                        if (!isAdded() || response2.body() == null
+                                                || response2.body().jobId == null) {
+                                            if (isAdded()) {
+                                                Toast.makeText(requireContext(),
+                                                        R.string.guru_enqueue_failed,
+                                                        Toast.LENGTH_SHORT).show();
+                                            }
+                                            return;
+                                        }
+                                        GuruPollWorker.watchFetchJob(
+                                                requireContext().getApplicationContext(),
+                                                response2.body().jobId, artist,
+                                                response.body().title);
+                                        Toast.makeText(requireContext(),
+                                                R.string.guru_enqueue_queued, Toast.LENGTH_LONG).show();
+                                    }
+
+                                    @Override
+                                    public void onFailure(Call<GuruJobAccepted> call2, Throwable t) {
+                                        if (isAdded()) {
+                                            Toast.makeText(requireContext(),
+                                                    R.string.guru_enqueue_failed,
+                                                    Toast.LENGTH_SHORT).show();
+                                        }
+                                    }
+                                });
+                    }
+
+                    @Override
+                    public void onFailure(Call<GuruAlbumTracks> call, Throwable t) {
                         if (isAdded()) {
                             Toast.makeText(requireContext(),
                                     R.string.guru_enqueue_failed, Toast.LENGTH_SHORT).show();
