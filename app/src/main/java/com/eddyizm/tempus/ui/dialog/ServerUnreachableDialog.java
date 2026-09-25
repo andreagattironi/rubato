@@ -51,7 +51,10 @@ public class ServerUnreachableDialog extends DialogFragment {
 
         alertDialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
             MainActivity activity = (MainActivity) getActivity();
-            if (activity != null) activity.quit();
+            // Rubato: MAI quit() qui — azzererebbe server/utenza su un
+            // semplice buco di rete (tunnel) bloccando l'utente. Il logout
+            // vero resta nelle Impostazioni.
+            if (activity != null) activity.goToLoginKeepingCredentials();
             alertDialog.dismiss();
         });
 

@@ -463,8 +463,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private void goToLogin() {
-        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
-        setBottomNavigationBarVisibility(false);
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);        setBottomNavigationBarVisibility(false);
         setBottomSheetVisibility(false);
 
         NavController nc = navigationController.getNavController();
@@ -477,6 +476,16 @@ public class MainActivity extends BaseActivity {
         } else if (id == R.id.homeFragment) {
             nc.navigate(R.id.action_homeFragment_to_loginFragment);
         }
+    }
+
+    /**
+     * Rubato: vai al login MANTENENDO le credenziali salvate.
+     * Su setup con tunnel (connessione ballerina) un "server unreachable"
+     * transitorio non deve mai cancellare server/utenza: quit() li azzera
+     * e l'utente resta bloccato nella lista server vuota.
+     */
+    public void goToLoginKeepingCredentials() {
+        goToLogin();
     }
 
     private void goToHome() {
