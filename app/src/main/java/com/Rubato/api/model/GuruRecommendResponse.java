@@ -32,6 +32,9 @@ public class GuruRecommendResponse {
         @SerializedName("top_tracks")
         public List<TopTrack> topTracks;
 
+        @SerializedName("top_album")
+        public TopAlbum topAlbum;
+
         public String bestTrackTitle() {
             if (topTracks != null) {
                 for (TopTrack t : topTracks) {
@@ -48,5 +51,19 @@ public class GuruRecommendResponse {
 
         @SerializedName("artist")
         public String artist;
+    }
+
+    public static class TopAlbum {
+        @SerializedName("id")
+        public long id;
+
+        @SerializedName("title")
+        public String title;
+
+        @SerializedName("artist")
+        public String artist;
+
+        @SerializedName("cover")
+        public String cover;
     }
 }

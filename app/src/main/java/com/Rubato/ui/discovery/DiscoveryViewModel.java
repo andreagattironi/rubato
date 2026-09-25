@@ -53,12 +53,7 @@ public class DiscoveryViewModel extends ViewModel {
     public void setMode(Mode m) {
         mode.setValue(m);
         if (!lastQuery.isEmpty()) search(lastQuery);
-        else if (m == Mode.TRACKS) loadRecommend();
-        else {
-            recommend.setValue(null);
-            tracks.setValue(Collections.emptyList());
-            error.setValue(null);
-        }
+        else loadRecommend();
     }
 
     public void search(String query) {
@@ -143,11 +138,25 @@ public class DiscoveryViewModel extends ViewModel {
                 });
     }
 
-    /** Missing -> righe scaricabili (top track); owned restano nell'header. */
+    /** Missing -> righe scaricabili: in ALBUMS i top album, altrimenti top track. */
     private void showMissing(GuruRecommendResponse rec) {
         List<GuruDiscoverResponse.GuruTrack> rows = new ArrayList<>();
+        boolean albums = mode.getValue() == Mode.ALBUMS;
         if (rec.missing != null) {
             for (GuruRecommendResponse.RecommendArtist a : rec.missing) {
+                if (albums) {
+                    if (a.topAlbum == null || a.topAlbum.id == 0) continue;
+                    GuruDiscoverResponse.GuruTrack r = new GuruDiscoverResponse.GuruTrack();
+                    r.albumId = a.topAlbum.id;
+                    r.id = a.topAlbum.id;
+                    r.title = a.topAlbum.title;
+                    r.artist = a.topAlbum.artist != null && !a.topAlbum.artist.isEmpty()
+                            ? a.topAlbum.artist : a.name;
+                    r.album = r.title;
+                    r.cover = a.topAlbum.cover != null ? a.topAlbum.cover : "";
+                    rows.add(r);
+                    continue;
+                }
                 String title = a.bestTrackTitle();
                 if (title == null) continue;
                 GuruDiscoverResponse.GuruTrack r = new GuruDiscoverResponse.GuruTrack();

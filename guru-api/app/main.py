@@ -629,7 +629,7 @@ async def recommend(
             owned.append({**cand, "owned": True})
         else:
             missing.append({**cand, "owned": False})
-    # top track + cover per i missing (cap a `count`), per il bottone ⬇
+    # top track + cover + top album per i missing (cap a `count`), per ⬇
     for cand in missing[:count]:
         try:
             d = await _lastfm("artist.gettoptracks",
@@ -649,6 +649,20 @@ async def recommend(
             cand["cover"] = dd.get("picture_medium", "")
         except RuntimeError:
             cand["cover"] = ""
+        try:
+            da = _deezer("search/album", {"q": cand["name"], "limit": 5})
+            top_album = {}
+            for al in da.get("data", []):
+                aname = ((al.get("artist") or {}).get("name") or "")
+                if _norm_name(cand["name"]) in _norm_name(aname) \
+                        or _norm_name(aname) in _norm_name(cand["name"]):
+                    top_album = {"id": al.get("id"), "title": al.get("title"),
+                                 "artist": aname,
+                                 "cover": al.get("cover_medium", "")}
+                    break
+            cand["top_album"] = top_album
+        except RuntimeError:
+            cand["top_album"] = {}
     out = {"seeds": seeds, "owned": owned[:count],
            "missing": missing[:count]}
     _rec_cache[ck] = {"ts": now, "data": out}

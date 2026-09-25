@@ -83,6 +83,8 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
 
         RecyclerView list = view.findViewById(R.id.discovery_recycler_view);
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
+        list.setHasFixedSize(true);
+        list.setItemViewCacheSize(20);
         adapter = new DiscoveryTrackAdapter(this);
         list.setAdapter(adapter);
 
