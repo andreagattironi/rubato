@@ -26,3 +26,4 @@ app/degoogled/
 .kotlin
 __pycache__/
 *.af~lock~
+*.mp4

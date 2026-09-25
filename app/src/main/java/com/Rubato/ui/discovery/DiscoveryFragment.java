@@ -115,9 +115,13 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
             }
         });
         viewModel.getMode().observe(getViewLifecycleOwner(), mode -> {
+            // Entrambi sempre cliccabili: l'attivo si distingue per opacità,
+            // MAI con setEnabled(false) che uccide il tap (bug visto su Pixel).
             boolean albums = mode == DiscoveryViewModel.Mode.ALBUMS;
-            songsButton.setEnabled(!albums);
-            albumsButton.setEnabled(albums);
+            songsButton.setEnabled(true);
+            albumsButton.setEnabled(true);
+            songsButton.setAlpha(albums ? 0.5f : 1.0f);
+            albumsButton.setAlpha(albums ? 1.0f : 0.5f);
             sectionHeader.setVisibility(View.GONE);
         });
         viewModel.getRecommend().observe(getViewLifecycleOwner(), rec -> {
