@@ -77,7 +77,7 @@ public class GuruPollWorker extends Worker {
             return Result.failure();
         }
         if (getRunAttemptCount() > MAX_ATTEMPTS) {
-            notifyTerminal(false, "Timed out waiting for the Pi â€” check manually");
+            notifyTerminal(false, "Timed out waiting for the Pi \u2014 check manually");
             return Result.failure();
         }
 
@@ -152,7 +152,7 @@ public class GuruPollWorker extends Worker {
     }
 
     private String label(String artist, String title) {
-        if (artist != null && title != null) return artist + " â€” " + title;
+        if (artist != null && title != null) return artist + " \u2014 " + title;
         if (title != null) return title;
         return "";
     }
