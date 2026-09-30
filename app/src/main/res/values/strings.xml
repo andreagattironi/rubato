@@ -587,6 +587,8 @@
     <string name="guru_enqueue_failed">Could not queue download</string>
     <string name="guru_not_configured">Configure guru-api URL and token in Settings first</string>
     <string name="guru_job_title">Soulseek download</string>
+    <string name="guru_channel_name">Soulseek downloads</string>
+    <string name="guru_channel_desc">Notifications when requested tracks are ready to play</string>
     <string name="song_bottom_sheet_guru_download">Download via Soulseek (to library)</string>    <string name="guru_job_done">Ready to play</string>
     <string name="guru_job_failed">Download failed</string>
     <string name="guru_job_progress">Downloading via Soulseek…</string>

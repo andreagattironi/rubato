@@ -115,6 +115,28 @@ async def nd_get(path: str, extra: dict | None = None) -> dict:
 
 
 # --- background workers --------------------------------------------------------
+def _snapshot_downloads() -> dict:
+    """Foto dei file in downloads: {path: mtime}. Isolamento per job:
+    i file arrivati DOPO lo snapshot appartengono al job."""
+    snap = {}
+    if not DOWNLOADS_DIR.is_dir():
+        return snap
+    for p in DOWNLOADS_DIR.rglob("*"):
+        if not (p.is_file() and p.suffix.lower() in AUDIO_EXT):
+            continue
+        try:
+            snap[str(p)] = p.stat().st_mtime
+        except OSError:
+            continue
+    return snap
+
+
+def _fetch_worker_done_files(snapshot: dict) -> list[str]:
+    """File comparsi in downloads dopo lo snapshot del job (i SUOI)."""
+    return sorted(p for p in _snapshot_downloads()
+                  if p not in snapshot and p.endswith(AUDIO_EXT_TUPLE))
+
+
 async def _fetch_worker(job_id: str, json_path: str, strategy: str = "track") -> None:
     async with _lock:
         jobs = _load_jobs()
@@ -128,6 +150,11 @@ async def _fetch_worker(job_id: str, json_path: str, strategy: str = "track") ->
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id]["status"] = "done" if res["rc"] == 0 else "failed"
+        if res["rc"] == 0:
+            # file ESATTI del job: diff contro lo snapshot preso all'enqueue
+            snap = jobs[job_id].get("snapshot", {}) or {}
+            jobs[job_id]["files"] = _fetch_worker_done_files(snap)
+            jobs[job_id]["snapshot"] = {}  # libera memoria
         jobs[job_id]["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         jobs[job_id]["cli_rc"] = res["rc"]
         jobs[job_id]["cli_tail"] = res["stdout"][-1500:]
@@ -144,6 +171,7 @@ LOOKUP_CACHE = MG_ROOT / "data" / "staging_lookup_cache.json"
 STAGING_ROOT.mkdir(parents=True, exist_ok=True)
 
 AUDIO_EXT = (".flac", ".mp3", ".m4a", ".opus", ".ogg")
+AUDIO_EXT_TUPLE = tuple(AUDIO_EXT)
 
 _COMP_HINTS = ("now that's", "now ", "hits", "compilation", "remix",
                "best of", "greatest", "collection", "vol.", "vol ", "mix",
@@ -282,29 +310,47 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
         _save_jobs(jobs)
     note: list[str] = []
     staging_info: dict = {}
-    # Fase 0 — staging+retag per un fetch-job: isola i suoi file in una
-    # staging dedicata e lancia `retag --staging` (crea cartella artista
-    # da MusicBrainz, drena compilation). Mai tutto downloads/.
+    # snapshot manifest PRIMA di qualsiasi fase (anche se consolida viene
+    # skippato, per non rileggere manifest vecchi come nuovi)
+    before = {p.name for p in REPORTS_DIR.glob("*.manifest.json")}
+    # Fase 0 — staging+retag per un fetch-job: isola ESATTAMENTE i suoi file
+    # (lista registrata al done del fetch, o legacy match) in una staging
+    # dedicata e lancia `retag --staging` (crea cartella artista da
+    # MusicBrainz, drena compilation). Mai tutto downloads/, mai altrui.
+    staging_ok = False
     if fetch_job_id:
         fjobs = _load_jobs()
         fj = fjobs.get(fetch_job_id, {})
         fart, ftitle = fj.get("artist", ""), fj.get("title", "")
-        # job album: matcha per artista+album, non per "[N tracce]"
-        match_title = fj.get("album", "") if ftitle.startswith("[") else ftitle
-        already = _library_has(fart, ftitle) if fj.get("status") == "done" else []
         staging_info = {"fetch_job": fetch_job_id}
-        if already:
-            staging_info["already_in_library"] = already
-            note.append("staging: già in libreria, skip re-import "
-                        f"({len(already)} match)")
+        if fj.get("status") != "done":
+            note.append(f"staging: fetch-job {fetch_job_id} non done, skip")
             cands = []
         else:
-            try:
-                since = time.mktime(time.strptime(
-                    fj.get("created_at", "2000-01-01T00:00:00"), "%Y-%m-%dT%H:%M:%S")) - 300
-            except ValueError:
-                since = 0
-            cands = _find_downloads(fart, match_title, since) if fj.get("status") == "done" else []
+            already = _library_has(fart, ftitle)
+            if already:
+                staging_info["already_in_library"] = already
+                note.append("staging: già in libreria, skip re-import "
+                            f"({len(already)} match)")
+                staging_ok = True
+                cands = []
+            else:
+                exact = [Path(p) for p in (fj.get("files") or []) if Path(p).is_file()]
+                if exact:
+                    cands = exact
+                    staging_info["exact"] = True
+                    note.append(f"staging: {len(cands)} file esatti del job")
+                else:
+                    # legacy (job vecchi senza snapshot): euristica token+mtime
+                    match_title = fj.get("album", "") if ftitle.startswith("[") else ftitle
+                    try:
+                        since = time.mktime(time.strptime(
+                            fj.get("created_at", "2000-01-01T00:00:00"),
+                            "%Y-%m-%dT%H:%M:%S")) - 300
+                    except ValueError:
+                        since = 0
+                    cands = _find_downloads(fart, match_title, since)
+                    staging_info["legacy_match"] = True
         staging_info["candidates"] = [str(p) for p in cands]
         if cands:
             import shutil
@@ -349,24 +395,32 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
             note.append(f"retag --staging rc={rres['rc']} dest={staging_info['dest']}")
             if staging_info["comp_to_comp"]:
                 note.append("ATTENZIONE: compilation -> compilation, verificare album")
+            staging_ok = (rres["rc"] == 0)
         else:
             if "already_in_library" not in staging_info:
                 note.append("staging: nessun file del fetch-job trovato in downloads")
+    # consolida SOLO su richiesta esplicita per artista: --queue processa
+    # anche code altrui (music-scout, batch) e i suoi abort non devono
+    # bocciare il job Rubato (lo staging sopra è già l'import vero).
+    consolida_ok: bool | None = None
     if artist:
         args = ["consolida", artist]
+        if not DRY_RUN:
+            args.append("--commit")
+        before = {p.name for p in REPORTS_DIR.glob("*.manifest.json")}
+        res = await run_cli(*args, timeout=3600)
+        note.append(f"consolida rc={res['rc']}")
+        consolida_ok = (res["rc"] == 0)
     else:
-        args = ["consolida", "--queue"]
-    if not DRY_RUN:
-        args.append("--commit")
-    before = {p.name for p in REPORTS_DIR.glob("*.manifest.json")}
-    res = await run_cli(*args, timeout=3600)
-    note.append(f"consolida rc={res['rc']}")
+        res = {"rc": 0, "stdout": "", "stderr": ""}
+        note.append("consolida: skip (solo staging del job, niente code altrui)")
     # Politica scan: Navidrome ha auto-scan ogni 6h, quindi di default
     # non si triggera nulla; quick solo per rendere subito disponibili
     # i file nuovi, full solo per purgare ghost (rename/merge di esistenti).
     level = "none"
     staged_moved = staging_info.get("moved", 0) > 0 or bool(staging_info.get("dest"))
-    if res["rc"] == 0 and not DRY_RUN:
+    scan_armed = (consolida_ok is None or consolida_ok) and not DRY_RUN
+    if scan_armed:
         if full:
             level = "full"
         else:
@@ -380,7 +434,7 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
         if level == "none":
             note.append("scan: nessuno (libreria invariata, basta auto-scan 6h)")
     scan_info: dict = {"triggered": False, "level": level}
-    if res["rc"] == 0 and not DRY_RUN and level != "none" and ND_USER and ND_PASS:
+    if scan_armed and level != "none" and ND_USER and ND_PASS:
         try:
             await nd_get("startScan", {"fullScan": "true" if level == "full" else "false"})
             scan_info["triggered"] = True
@@ -401,7 +455,19 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
             scan_info["error"] = str(exc)[:300]
     async with _lock:
         jobs = _load_jobs()
-        ok = res["rc"] == 0
+        # Esito dallo staging (l'import vero), MAI da consolida altrui:
+        # - fetch-job: ok se staging ha mosso file o era già in libreria
+        # - solo artist: ok se consolida rc 0
+        # - consolida fallita con staging ok: solo nota, non boccia il job
+        if fetch_job_id:
+            ok = staging_ok
+            if consolida_ok is False:
+                note.append("consolida fallita MA staging ok: job valido comunque")
+        elif artist:
+            ok = bool(consolida_ok)
+        else:
+            ok = True
+            note.append("niente da fare (né job né artista)")
         jobs[job_id]["status"] = "done" if ok else "failed"
         jobs[job_id]["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         jobs[job_id]["cli_tail"] = res["stdout"][-1500:] + "\n" + "\n".join(note)
@@ -715,7 +781,8 @@ async def enqueue(req: EnqueueReq, _: None = Depends(check_auth)) -> dict:
                         "artist": req.artist, "title": req.title,
                         "album": req.album or "",
                         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                        "dry_run": DRY_RUN}
+                        "dry_run": DRY_RUN,
+                        "snapshot": _snapshot_downloads()}
         _save_jobs(jobs)
     asyncio.create_task(_fetch_worker(job_id, str(jf)))
     return {"job_id": job_id, "status": "queued", "dry_run": DRY_RUN}
@@ -746,7 +813,8 @@ async def enqueue_album(req: EnqueueAlbumReq, _: None = Depends(check_auth)) -> 
                         "artist": req.artist, "title": f"[{len(req.tracks)} tracce]",
                         "album": req.album,
                         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                        "dry_run": DRY_RUN}
+                        "dry_run": DRY_RUN,
+                        "snapshot": _snapshot_downloads()}
         _save_jobs(jobs)
     asyncio.create_task(_fetch_worker(job_id, str(jf), strategy="album"))
     return {"job_id": job_id, "status": "queued", "dry_run": DRY_RUN}
@@ -770,10 +838,11 @@ async def slskd_queue(_: None = Depends(check_auth)) -> dict:
 
 @app.post("/import", status_code=202)
 async def import_job(req: ImportReq, _: None = Depends(check_auth)) -> dict:
-    """In background: [staging+retag del fetch-job] + `consolida` +
-    scan Navidrome server-side (none/quick/full da manifest, `full: true`
-    forza). Con `job_id` i file del download vengono isolati in staging
-    dedicata e passati a `retag --staging` (mai tutto downloads/)."""
+    """In background: [staging+retag dei file ESATTI del fetch-job] +
+    [`consolida <artist>` solo se artista esplicito] + scan Navidrome
+    server-side (none/quick/full, `full: true` forza).
+    Lo staging decide l'esito; consolida --queue NON gira più qui
+    (mescolava code altrui e bocciava job sani)."""
     job_id = secrets.token_hex(6)
     async with _lock:
         jobs = _load_jobs()

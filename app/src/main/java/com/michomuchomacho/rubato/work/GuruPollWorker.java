@@ -162,6 +162,8 @@ public class GuruPollWorker extends Worker {
         String jobId = getInputData().getString(KEY_JOB_ID);
         int notifId = jobId != null ? jobId.hashCode() : 9001;
 
+        ensureGuruChannel(context);
+
         Intent intent = new Intent(context, MainActivity.class)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER);
@@ -170,7 +172,7 @@ public class GuruPollWorker extends Worker {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(
-                context, DownloadUtil.DOWNLOAD_NOTIFICATION_CHANNEL_ID)
+                context, GURU_CHANNEL_ID)
                 .setContentTitle(context.getString(R.string.guru_job_title))
                 .setContentText(success
                         ? context.getString(R.string.guru_job_done)
@@ -182,10 +184,28 @@ public class GuruPollWorker extends Worker {
                 .setOngoing(false)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(false)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL);
 
         NotificationManager nm =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         nm.notify(notifId, builder.build());
+    }
+
+    static final String GURU_CHANNEL_ID = "guru_channel";
+
+    /** Canale dedicato ad alta importanza: quello dei download Media3 è
+     * silenzioso (progress), qui serve heads-up + suono a lavoro finito. */
+    static void ensureGuruChannel(Context context) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return;
+        NotificationManager nm =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm.getNotificationChannel(GURU_CHANNEL_ID) != null) return;
+        android.app.NotificationChannel ch = new android.app.NotificationChannel(
+                GURU_CHANNEL_ID,
+                context.getString(R.string.guru_channel_name),
+                NotificationManager.IMPORTANCE_HIGH);
+        ch.setDescription(context.getString(R.string.guru_channel_desc));
+        nm.createNotificationChannel(ch);
     }
 }
