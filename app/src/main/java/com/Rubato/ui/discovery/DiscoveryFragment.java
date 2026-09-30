@@ -150,6 +150,8 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
         if (!Preferences.isGuruConfigured()) {
             emptyView.setVisibility(View.VISIBLE);
             emptyView.setText(R.string.guru_not_configured);
+        } else {
+            viewModel.loadRecommend();
         }
     }
 

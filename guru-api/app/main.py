@@ -36,6 +36,15 @@ JOBS_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="guru-api", version="0.1.0")
 
 
+@app.middleware("http")
+async def _no_store(request, call_next):
+    """Niente cache edge (Cloudflare) né client: dati sempre live."""
+    resp = await call_next(request)
+    resp.headers["Cache-Control"] = "no-store, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
 # --- auth --------------------------------------------------------------------
 def check_auth(authorization: str = Header(default="")) -> None:
     if not TOKEN:
