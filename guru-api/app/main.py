@@ -550,37 +550,34 @@ def _norm_name(s: str) -> str:
     return " ".join(_re.sub(r"[^a-z0-9 ]", " ", (s or "").lower()).split())
 
 
-async def _nd_frequent_artists(limit: int = 5) -> list[str]:
-    """Artisti seed: prima i più ascoltati (frequent), poi gli arrivi
-    recenti (newest), infine un campione casuale dall'indice."""
+async def _nd_seed_artists(limit: int = 4) -> list[str]:
+    """Seed vari: meta arrivi recenti, meta campione casuale dalla libreria.
+    Evita consigli one-sided (tutto dallo stesso periodo/genere)."""
     import random as _random
-    for atype in ("frequent", "newest"):
-        try:
-            resp = await nd_get("getAlbumList2", {"type": atype, "size": "15"})
-        except Exception:
-            continue
-        seen: list[str] = []
-        container = resp.get("albumList2", {})
-        for al in container.get("album", []):
+    fresh: list[str] = []
+    try:
+        resp = await nd_get("getAlbumList2", {"type": "newest", "size": "15"})
+        for al in resp.get("albumList2", {}).get("album", []):
             a = (al.get("artist") or "").strip()
-            if a and a not in seen:
-                seen.append(a)
-            if len(seen) >= limit:
+            if a and a not in fresh:
+                fresh.append(a)
+            if len(fresh) >= (limit + 1) // 2:
                 break
-        if seen:
-            return seen
+    except Exception:
+        pass
+    pool: list[str] = []
     try:
         resp = await nd_get("getArtists", {})
-        names = []
         for idx in resp.get("artists", {}).get("index", []):
             for a in idx.get("artist", []):
                 n = (a.get("name") or "").strip()
-                if n:
-                    names.append(n)
-        _random.shuffle(names)
-        return names[:limit]
+                if n and n not in fresh and n not in pool:
+                    pool.append(n)
     except Exception:
-        return []
+        pass
+    _random.shuffle(pool)
+    seeds = fresh + [p for p in pool if p not in fresh]
+    return seeds[:limit]
 
 
 _rec_cache: dict = {}
@@ -671,14 +668,16 @@ async def recommend(
     now = time.time()
     if ck in _rec_cache and now - _rec_cache[ck]["ts"] < 3600:
         return _rec_cache[ck]["data"]
-    seeds = [artist] if artist else await _nd_frequent_artists(4)
+    seeds = [artist] if artist else await _nd_seed_artists(4)
     seeds = [s for s in seeds
              if _norm_name(s) not in ("various artists", "various", "unknown artist", "")]
     if not seeds:
         raise HTTPException(503, "nessun seed: libreria vuota o irraggiungibile")
     similar: list[dict] = []
     seen_names = {_norm_name(s) for s in seeds}
+    per_seed = max(2, (count * 2) // max(1, len(seeds[:4])))
     for s in seeds[:4]:
+        added = 0
         try:
             d = await _lastfm("artist.getsimilar", {"artist": s, "limit": 10})
         except RuntimeError:
@@ -693,7 +692,8 @@ async def recommend(
             seen_names.add(_norm_name(name))
             similar.append({"name": name, "match": a.get("match"),
                             "seed": s})
-            if len(similar) >= count * 2:
+            added += 1
+            if added >= per_seed or len(similar) >= count * 2:
                 break
         if len(similar) >= count * 2:
             break

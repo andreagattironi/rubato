@@ -88,6 +88,9 @@ public class HomeFragment extends Fragment {
 
         pager.addFragment(new HomeTabMusicFragment(), getString(R.string.home_section_music), R.drawable.ic_home);
 
+        if (Preferences.isDiscoverySectionVisible())
+            pager.addFragment(new com.michomuchomacho.rubato.ui.discovery.DiscoveryFragment(), getString(R.string.home_section_discovery), R.drawable.ic_search);
+
         if (Preferences.isPodcastSectionVisible())
             pager.addFragment(new HomeTabPodcastFragment(), getString(R.string.home_section_podcast), R.drawable.ic_graphic_eq);
 
@@ -105,7 +108,7 @@ public class HomeFragment extends Fragment {
                 }
         ).attach();
 
-        tabLayout.setVisibility(Preferences.isPodcastSectionVisible() || Preferences.isRadioSectionVisible() ? View.VISIBLE : View.GONE);
+        tabLayout.setVisibility(Preferences.isDiscoverySectionVisible() || Preferences.isPodcastSectionVisible() || Preferences.isRadioSectionVisible() ? View.VISIBLE : View.GONE);
 
         bind.homeViewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override

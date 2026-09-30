@@ -67,6 +67,7 @@ object Preferences {
     private const val ROUNDED_CORNER_SIZE = "rounded_corner_size"
     private const val PODCAST_SECTION_VISIBILITY = "podcast_section_visibility"
     private const val RADIO_SECTION_VISIBILITY = "radio_section_visibility"
+    private const val DISCOVERY_SECTION_VISIBILITY = "discovery_section_visibility"
     private const val AUTO_DOWNLOAD_LYRICS = "auto_download_lyrics"
     private const val MUSIC_DIRECTORY_SECTION_VISIBILITY = "music_directory_section_visibility"
     private const val REPLAY_GAIN_MODE = "replay_gain_mode"
@@ -714,6 +715,10 @@ object Preferences {
         return App.getInstance().preferences.getBoolean(RADIO_SECTION_VISIBILITY, true)
     }
 
+    @JvmStatic
+    fun isDiscoverySectionVisible(): Boolean {
+        return App.getInstance().preferences.getBoolean(DISCOVERY_SECTION_VISIBILITY, true)
+    }
     @JvmStatic
     fun setRadioSectionHidden() {
         App.getInstance().preferences.edit().putBoolean(RADIO_SECTION_VISIBILITY, false).apply()
