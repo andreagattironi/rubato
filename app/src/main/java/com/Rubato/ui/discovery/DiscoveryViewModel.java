@@ -116,7 +116,7 @@ public class DiscoveryViewModel extends ViewModel {
             return;
         }
         loading.setValue(true);
-        GuruClient.getInstance().recommend(null, 8)
+        GuruClient.getInstance().recommend(null, 12)
                 .enqueue(new Callback<GuruRecommendResponse>() {
                     @Override
                     public void onResponse(Call<GuruRecommendResponse> call,
