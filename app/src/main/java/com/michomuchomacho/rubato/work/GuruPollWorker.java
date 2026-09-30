@@ -102,6 +102,21 @@ public class GuruPollWorker extends Worker {
                 }
                 if (!st.isDone()) return Result.retry();
 
+                // Download done ma 0 file = peer non trovati: riprova il fetch
+                // (server: max tentativi), non importare il vuoto.
+                if (st.files == null || st.files.isEmpty()) {
+                    Response<GuruJobAccepted> re =
+                            client.retryFetch(jobId).execute();
+                    if (re.code() == 410) {
+                        notifyNotFound(label(artist, title));
+                        return Result.failure();
+                    }
+                    if (re.body() == null || re.body().jobId == null) {
+                        return Result.retry();
+                    }
+                    return Result.retry();
+                }
+
                 // Download done: trigger server-side import, then poll that.
                 Response<GuruJobAccepted> imp = client.importFetchJob(jobId).execute();
                 if (imp.body() == null || imp.body().jobId == null) {
@@ -155,6 +170,39 @@ public class GuruPollWorker extends Worker {
         if (artist != null && title != null) return artist + " \u2014 " + title;
         if (title != null) return title;
         return "";
+    }
+
+    /** Tentativi esauriti: dillo chiaro invece di "failed" generico. */
+    private void notifyNotFound(String detail) {
+        Context context = getApplicationContext();
+        String jobId = getInputData().getString(KEY_JOB_ID);
+        int notifId = jobId != null ? jobId.hashCode() : 9002;
+
+        ensureGuruChannel(context);
+
+        Intent intent = new Intent(context, MainActivity.class)
+                .setAction(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER);
+        PendingIntent tap = PendingIntent.getActivity(
+                context, notifId, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        android.app.Notification notification = new NotificationCompat.Builder(
+                context, GURU_CHANNEL_ID)
+                .setContentTitle(context.getString(R.string.guru_job_title))
+                .setContentText(context.getString(R.string.guru_job_not_found)
+                        + (detail.isEmpty() ? "" : ": " + detail))
+                .setSmallIcon(R.drawable.ic_error)
+                .setContentIntent(tap)
+                .setOngoing(false)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .build();
+
+        NotificationManager nm =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        nm.notify(notifId, notification);
     }
 
     private void notifyTerminal(boolean success, String detail) {

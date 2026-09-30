@@ -591,6 +591,7 @@
     <string name="guru_channel_desc">Notifications when requested tracks are ready to play</string>
     <string name="song_bottom_sheet_guru_download">Download via Soulseek (to library)</string>    <string name="guru_job_done">Ready to play</string>
     <string name="guru_job_failed">Download failed</string>
+    <string name="guru_job_not_found">Not found on Soulseek right now — try again later</string>
     <string name="guru_job_progress">Downloading via Soulseek…</string>
     <string name="menu_discovery_label">Discovery</string>
     <string name="home_section_discovery">Discovery</string>

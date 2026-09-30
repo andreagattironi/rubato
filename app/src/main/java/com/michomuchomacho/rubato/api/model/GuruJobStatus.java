@@ -29,6 +29,9 @@ public class GuruJobStatus {
     @SerializedName("cli_tail")
     public String cliTail;
 
+    @SerializedName("files")
+    public java.util.List<String> files;
+
     public boolean isDone() {
         return "done".equals(status);
     }

@@ -142,6 +142,10 @@ async def _fetch_worker(job_id: str, json_path: str, strategy: str = "track") ->
         jobs = _load_jobs()
         jobs[job_id]["status"] = "running"
         jobs[job_id]["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        # snapshot a START fetch (non all'enqueue): isola i file di QUESTO run
+        # anche se altri job hanno scaricato nel frattempo
+        jobs[job_id]["snapshot"] = _snapshot_downloads()
+        jobs[job_id]["retries"] = jobs[job_id].get("retries", 0)
         _save_jobs(jobs)
     args = [json_path, "--strategy", strategy]
     if not DRY_RUN:
@@ -786,6 +790,36 @@ async def enqueue(req: EnqueueReq, _: None = Depends(check_auth)) -> dict:
         _save_jobs(jobs)
     asyncio.create_task(_fetch_worker(job_id, str(jf)))
     return {"job_id": job_id, "status": "queued", "dry_run": DRY_RUN}
+
+
+MAX_FETCH_RETRIES = 5
+
+
+@app.post("/slskd/retry/{job_id}", status_code=202)
+async def retry_fetch(job_id: str, _: None = Depends(check_auth)) -> dict:
+    """Rilancia il fetch di un job `done` senza file (peer non trovati):
+    max MAX_FETCH_RETRIES tentativi, poi si dichiara non trovato."""
+    async with _lock:
+        jobs = _load_jobs()
+        job = jobs.get(job_id)
+        if not job or job.get("kind") != "fetch":
+            raise HTTPException(404, "fetch-job sconosciuto")
+        if job.get("status") not in ("done", "failed"):
+            raise HTTPException(409, "job non terminato")
+        if job.get("files"):
+            raise HTTPException(409, "job con file, usa /import")
+        retries = job.get("retries", 0)
+        if retries >= MAX_FETCH_RETRIES:
+            raise HTTPException(410, "tentativi esauriti: non trovato su Soulseek")
+        jf = JOBS_DIR / f"enqueue_{job_id}.json"
+        if not jf.exists():
+            raise HTTPException(410, "json job mancante")
+        strategy = "album" if (job.get("title") or "").startswith("[") else "track"
+        job["status"] = "queued"
+        job["retries"] = retries + 1
+        _save_jobs(jobs)
+    asyncio.create_task(_fetch_worker(job_id, str(jf), strategy=strategy))
+    return {"job_id": job_id, "status": "queued", "retries": retries + 1}
 
 
 class EnqueueAlbumReq(BaseModel):

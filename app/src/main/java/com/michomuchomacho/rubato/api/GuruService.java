@@ -41,6 +41,9 @@ public interface GuruService {
     @POST("slskd/enqueue")
     Call<GuruJobAccepted> enqueue(@Body GuruEnqueueRequest request);
 
+    @POST("slskd/retry/{id}")
+    Call<GuruJobAccepted> retry(@Path("id") String jobId);
+
     @POST("slskd/enqueue-album")
     Call<GuruJobAccepted> enqueueAlbum(@Body GuruEnqueueAlbumRequest request);
 

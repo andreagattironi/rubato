@@ -120,6 +120,11 @@ public class GuruClient {
         return service.enqueue(new GuruEnqueueRequest(artist, title, album));
     }
 
+    public Call<GuruJobAccepted> retryFetch(String jobId) {
+        Log.d(TAG, "retryFetch: " + jobId);
+        return service.retry(jobId);
+    }
+
     public Call<GuruJobStatus> status(String jobId) {
         return service.status(jobId);
     }
