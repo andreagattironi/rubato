@@ -15,7 +15,7 @@
         android:layout_height="50dp"
         android:layout_centerVertical="true"
         android:scaleType="centerCrop"
-        android:src="@drawable/ic_splash_logo"
+        android:src="@drawable/ic_launcher_foreground"
         android:contentDescription="@string/widget_content_desc_album_art"/>
 
     <LinearLayout

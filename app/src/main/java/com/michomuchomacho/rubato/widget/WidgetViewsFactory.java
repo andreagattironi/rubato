@@ -54,7 +54,7 @@ public final class WidgetViewsFactory {
         rv.setTextViewText(R.id.time_total, ctx.getString(R.string.widget_time_duration_placeholder));
         rv.setProgressBar(R.id.progress, PROGRESS_MAX, 0, false);
         rv.setImageViewResource(R.id.btn_play_pause, R.drawable.ic_play);
-        rv.setImageViewResource(R.id.album_art, R.drawable.ic_splash_logo);
+        rv.setImageViewResource(R.id.album_art, R.drawable.ic_launcher_foreground);
         applySecondaryControlsDefaults(ctx, rv, showSecondaryControls);
         return rv;
     }
@@ -165,7 +165,7 @@ public final class WidgetViewsFactory {
             Bitmap rounded = maybeRoundBitmap(ctx, art);
             rv.setImageViewBitmap(R.id.album_art, rounded != null ? rounded : art);
         } else {
-            rv.setImageViewResource(R.id.album_art, R.drawable.ic_splash_logo);
+            rv.setImageViewResource(R.id.album_art, R.drawable.ic_launcher_foreground);
         }
 
         rv.setImageViewResource(R.id.btn_play_pause,
