@@ -51,8 +51,14 @@ public class DiscoveryTrackAdapter
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         GuruDiscoverResponse.GuruTrack track = items.get(position);
         holder.title.setText(track.title != null ? track.title : "");
-        String sub = (track.artist != null ? track.artist : "")
-                + (track.album != null ? " \u2022 " + track.album : "");
+        String artist = track.artist != null ? track.artist : "";
+        String album = track.album != null ? track.album : "";
+        // niente "artista • " orfano se l'album manca, e niente
+        // "artista • titolo" duplicato nelle righe album
+        String sub = artist;
+        if (!album.isEmpty() && !album.equals(track.title)) {
+            sub += " \u2022 " + album;
+        }
         holder.subtitle.setText(sub);
         if (track.duration > 0) {
             holder.duration.setVisibility(View.VISIBLE);
