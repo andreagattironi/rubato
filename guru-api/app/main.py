@@ -147,17 +147,46 @@ async def _fetch_worker(job_id: str, json_path: str, strategy: str = "track") ->
         jobs[job_id]["snapshot"] = _snapshot_downloads()
         jobs[job_id]["retries"] = jobs[job_id].get("retries", 0)
         _save_jobs(jobs)
+        fart = jobs[job_id].get("artist", "")
+        ftitle = jobs[job_id].get("title", "")
+        falbum = jobs[job_id].get("album", "")
     args = [json_path, "--strategy", strategy]
     if not DRY_RUN:
         args.append("--commit")
     res = await run_cli("fetch", *args, timeout=1800)
+    files: list[str] = []
+    if res["rc"] == 0 and not DRY_RUN:
+        # fetch enqueua e ritorna: aspetta i file DEL job (non tutta la coda
+        # come --watch): match per token artista+titolo (o artista+album per
+        # i job album "[N tracce]") sui file nuovi.
+        match_text = falbum if ftitle.startswith("[") else ftitle
+        wt = [t for t in _tokens(match_text) if len(t) > 2]
+        wa = [t for t in _tokens(fart) if len(t) > 3]
+        snap = jobs[job_id].get("snapshot", {}) or {}
+        for _ in range(40):  # ~20 min max
+            cand = []
+            for p, _mt in _snapshot_downloads().items():
+                if p in snap or not p.endswith(AUDIO_EXT_TUPLE):
+                    continue
+                fn = " ".join(_tokens(p.split("/")[-1]))
+                if (wt and all(t in fn for t in wt)) or (wa and any(t in fn for t in wa)):
+                    cand.append(p)
+                elif not wt and not wa:
+                    cand.append(p)
+            if cand:
+                files = sorted(cand)
+                break
+            await asyncio.sleep(30)
+        if not files:
+            # fallback: tutti i nuovi (meglio importare qualcosa da scremare
+            # che perdere il download lento)
+            files = sorted(p for p in _snapshot_downloads()
+                           if p not in snap and p.endswith(AUDIO_EXT_TUPLE))
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id]["status"] = "done" if res["rc"] == 0 else "failed"
         if res["rc"] == 0:
-            # file ESATTI del job: diff contro lo snapshot preso all'enqueue
-            snap = jobs[job_id].get("snapshot", {}) or {}
-            jobs[job_id]["files"] = _fetch_worker_done_files(snap)
+            jobs[job_id]["files"] = files
             jobs[job_id]["snapshot"] = {}  # libera memoria
         jobs[job_id]["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         jobs[job_id]["cli_rc"] = res["rc"]
