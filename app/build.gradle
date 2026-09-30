@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = 'com.eddyizm.tempus'
+    namespace = 'com.michomuchomacho.rubato'
     //noinspection GradleDependency
     compileSdk = 37
     buildToolsVersion = '36.1.0'
@@ -54,12 +54,12 @@ android {
     productFlavors {
         tempus {
             dimension = "default"
-            applicationId = 'com.eddyizm.tempus'
+            applicationId = 'com.michomuchomacho.rubato'
         }
 
         degoogled {
             dimension = "default"
-            applicationId = "com.eddyizm.degoogled.tempus"
+            applicationId = "com.michomuchomacho.rubato.degoogled"
         }
     }
 
