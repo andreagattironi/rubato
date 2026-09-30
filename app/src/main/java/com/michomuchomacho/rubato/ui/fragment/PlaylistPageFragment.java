@@ -312,7 +312,7 @@ public class PlaylistPageFragment extends Fragment implements ClickCallback {
         // Observe with the view lifecycle, not the activity. The view model is
         // activity-scoped, so observing its shared LiveData with requireActivity()
         // left one observer per opened playlist registered for the whole session,
-        // each retaining this fragment's view tree (the cover ImageViews) â€” the
+        // each retaining this fragment's view tree (the cover ImageViews) — the
         // heap climbed with every playlist opened until OOM. getViewLifecycleOwner()
         // removes the observer at onDestroyView so the view tree can be collected.
         // See issue #696.

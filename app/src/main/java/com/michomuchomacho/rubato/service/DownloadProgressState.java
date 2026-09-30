@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @UnstableApi
 public final class DownloadProgressState {
 
-    // Fixed notification IDs â€” Path A uses (1, 2), ExternalAudioWriter errors use (1009, 1010)
+    // Fixed notification IDs — Path A uses (1, 2), ExternalAudioWriter errors use (1009, 1010)
     public static final int EXTERNAL_PROGRESS_NOTIFICATION_ID = 1012;
     public static final int EXTERNAL_COMPLETE_NOTIFICATION_ID = 1013;
 
@@ -91,7 +91,7 @@ public final class DownloadProgressState {
     }
 
     /**
-     * Called when a track was already present â€” counts as a quiet skip, not an error.
+     * Called when a track was already present — counts as a quiet skip, not an error.
      */
     public void onSkipped(Context context) {
         synchronized (lock) {
@@ -152,8 +152,8 @@ public final class DownloadProgressState {
         if (total > 0) {
             contentText = context.getString(R.string.notification_download_progress_format, doneCount, total);
             contentText += currentSpeedBytesPerSec > 0f
-                    ? " â€¢ " + formatSpeed(currentSpeedBytesPerSec)
-                    : " â€¢ ? KB/s";
+                    ? " • " + formatSpeed(currentSpeedBytesPerSec)
+                    : " • ? KB/s";
         } else {
             contentText = context.getString(R.string.notification_processing);
         }
@@ -196,7 +196,7 @@ public final class DownloadProgressState {
             detail.append(context.getResources().getQuantityString(
                     R.plurals.notification_tracks_failed, failedCount, failedCount));
         } else {
-            // Only skipped â€” silently dismiss the progress notification, no final notification needed
+            // Only skipped — silently dismiss the progress notification, no final notification needed
             return;
         }
 

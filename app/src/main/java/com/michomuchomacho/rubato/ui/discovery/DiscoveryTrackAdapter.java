@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Risultati discovery: copertina + titoli + bottone download â¬‡ per brano. */
+/** Risultati discovery: copertina + titoli + bottone download \u2b07 per brano. */
 public class DiscoveryTrackAdapter
         extends RecyclerView.Adapter<DiscoveryTrackAdapter.ViewHolder> {
 
@@ -52,7 +52,7 @@ public class DiscoveryTrackAdapter
         GuruDiscoverResponse.GuruTrack track = items.get(position);
         holder.title.setText(track.title != null ? track.title : "");
         String sub = (track.artist != null ? track.artist : "")
-                + (track.album != null ? " â€¢ " + track.album : "");
+                + (track.album != null ? " \u2022 " + track.album : "");
         holder.subtitle.setText(sub);
         if (track.duration > 0) {
             holder.duration.setVisibility(View.VISIBLE);

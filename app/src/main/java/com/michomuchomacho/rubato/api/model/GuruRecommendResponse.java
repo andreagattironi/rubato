@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
 
-/** GET /recommend â€” owned[] in libreria, missing[] con top track per â¬‡. */
+/** GET /recommend — owned[] in libreria, missing[] con top track per ⬇. */
 public class GuruRecommendResponse {
 
     @SerializedName("seeds")

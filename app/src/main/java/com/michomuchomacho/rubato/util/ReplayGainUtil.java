@@ -142,7 +142,7 @@ public class ReplayGainUtil {
                     if (current != null && item.mediaId.equals(current.mediaId)) {
                         float gain = resolveGain(p, gains);
                         // Only apply if we have real gain data. Empty prefetch
-                        // gains (gain = 0f) must not call setGainImmediate â€”
+                        // gains (gain = 0f) must not call setGainImmediate —
                         // that would write preamp-only (-6 dB) into
                         // baselineGainLinear, poisoning every future seek
                         // restore (onFlush reads baselineGainLinear) and every
@@ -152,11 +152,11 @@ public class ReplayGainUtil {
                             float peak = resolvePeak(p, gains);
                             float totalGain = computeTotalGain(gain, peak);
                             Log.d(TAG, "Late prefetch for current track " + item.mediaId
-                                    + " â€” applying gain immediately totalGain=" + totalGain);
+                                    + " — applying gain immediately totalGain=" + totalGain);
                             audioProcessor.setGainImmediate(totalGain);
                         } else {
                             Log.d(TAG, "Late prefetch for current track " + item.mediaId
-                                    + " â€” empty gains, skipping setGainImmediate");
+                                    + " — empty gains, skipping setGainImmediate");
                         }
                     }
 
@@ -278,7 +278,7 @@ public class ReplayGainUtil {
 
         // Guard: if we have no effective gain data (all zeros), do NOT call
         // setGainImmediate. This mirrors reapplyCurrentTrackGain's behaviour:
-        // "no data â€” leave the current gain unchanged."
+        // "no data — leave the current gain unchanged."
         //
         // Without this guard, an onTracksChanged that fires with empty gains
         // (e.g. seeking past the ID3 header, or a transcoded stream with no
@@ -320,7 +320,7 @@ public class ReplayGainUtil {
      * hasProcessedAnyInput &amp;&amp; endOfStreamPending}) and incorrectly
      * promotes the <em>next</em> track's pending gain onto the current track.
      * If that pending gain is the fallback 0 dB value (no RG data cached for
-     * the next track yet), the audio jumps to unity gain â€” the dramatic volume
+     * the next track yet), the audio jumps to unity gain — the dramatic volume
      * increase the user hears.
      *
      * <p>This method is intentionally narrow: it only calls
@@ -368,7 +368,7 @@ public class ReplayGainUtil {
             return;
         }
 
-        // No data available yet â€” leave the current gain unchanged rather than
+        // No data available yet — leave the current gain unchanged rather than
         // snapping to an arbitrary value.  onTracksChanged / the late-prefetch
         // callback will apply the correct gain once data arrives.
         Log.d(TAG, "reapplyCurrentTrackGain: no cached data for "
@@ -386,7 +386,7 @@ public class ReplayGainUtil {
 
         if (resolvedGain == 0f) {
             if (gains == null) {
-                // No data cached yet â€” data may arrive via prefetch or onTracksChanged.
+                // No data cached yet — data may arrive via prefetch or onTracksChanged.
                 // Carry over the current track's gain so there is no sudden change at
                 // the boundary; the correct value will be applied once data arrives.
                 Log.d(TAG, "queuePendingForNextTrack: no RG data yet for "

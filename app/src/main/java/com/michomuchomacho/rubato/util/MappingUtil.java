@@ -299,7 +299,7 @@ public class MappingUtil {
                 // cross-process consumers (SystemUI media controls, Android Auto) can read it.
                 // The ?v=<mtime> busts caches when the cover is edited. coverArtId stays null on
                 // purpose: it drives server getCoverArt loads (e.g. the widget), and a local cover
-                // has no server id â€” the artworkUri above already carries it.
+                // has no server id — the artworkUri above already carries it.
                 String localCoverId = "rl_" + internetRadioStation.getId();
                 artworkUri = AlbumArtContentProvider.contentUri(localCoverId).buildUpon()
                         .appendQueryParameter("v", String.valueOf(localCover.lastModified()))

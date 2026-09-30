@@ -74,8 +74,8 @@ public class DiscoverSongAdapter extends RecyclerView.Adapter<DiscoverSongAdapte
         super.onViewDetachedFromWindow(holder);
         // #777: cancel the long (20s) scale animation when the row leaves the window.
         // A running ViewPropertyAnimator is referenced by the global AnimationHandler,
-        // which would otherwise retain this ImageView â€” and, via View.mContext, the
-        // whole destroyed MainActivity and its cover-art bitmaps â€” until the app OOMs.
+        // which would otherwise retain this ImageView — and, via View.mContext, the
+        // whole destroyed MainActivity and its cover-art bitmaps — until the app OOMs.
         holder.item.discoverSongCoverImageView.animate().cancel();
     }
 

@@ -2,7 +2,7 @@ package com.michomuchomacho.rubato.api.model;
 
 import com.google.gson.annotations.SerializedName;
 
-/** GET /slskd/status/{id} â€” stato job persistito (fetch o import). */
+/** GET /slskd/status/{id} — stato job persistito (fetch o import). */
 public class GuruJobStatus {
 
     @SerializedName("job_id")

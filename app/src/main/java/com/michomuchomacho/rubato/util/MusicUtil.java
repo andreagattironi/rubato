@@ -227,10 +227,10 @@ public class MusicUtil {
             detail = detail.isEmpty() ? displayChild.getSuffix() : detail + " " + displayChild.getSuffix();
         }
 
-        return "â€¢" +
+        return "•" +
                 " " +
                 (hasBitrate ? displayChild.getBitrate() + "kbps" : "") +
-                (hasBitrate && !detail.isEmpty() ? " â€¢ " : "") +
+                (hasBitrate && !detail.isEmpty() ? " • " : "") +
                 detail;
     }
 

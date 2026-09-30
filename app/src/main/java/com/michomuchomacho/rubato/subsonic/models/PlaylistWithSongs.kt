@@ -17,7 +17,7 @@ class PlaylistWithSongs(
     // Playlist's) and throws "declares multiple JSON fields named 'id'" at startup.
     // The previous workaround mapped this field to "_id", which dodged the clash but
     // left the id null for the Subsonic getPlaylist response (it sends "id"): opening a
-    // playlist by id â€” e.g. a tempo://asset/playlist/<id> deep link â€” then re-fetched
+    // playlist by id — e.g. a tempo://asset/playlist/<id> deep link — then re-fetched
     // its songs with a null id, the server replied "missing parameter: 'id'", the page
     // showed a perpetual spinner plus a misleading "Playlist not found" dialog, and the
     // null id later crashed with a String.equals NPE. Inheriting Playlist.id (which maps

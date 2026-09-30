@@ -68,7 +68,7 @@ public class RadioEditorDialog extends DialogFragment {
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         bind = DialogRadioEditorBinding.inflate(getLayoutInflater());
         // Scope the ViewModel to this dialog (not the activity) so each opening starts with a
-        // clean state â€” otherwise a retained toEdit / isSuccess leaks between add and edit flows.
+        // clean state — otherwise a retained toEdit / isSuccess leaks between add and edit flows.
         radioEditorViewModel = new ViewModelProvider(this).get(RadioEditorViewModel.class);
 
         if (getArguments() != null && getArguments().getParcelable(Constants.INTERNET_RADIO_STATION_OBJECT) != null) {
@@ -173,7 +173,7 @@ public class RadioEditorDialog extends DialogFragment {
     }
 
     // The country picker is an inline list rendered inside the popup (not a floating
-    // ListPopupWindow), so we fully control its position â€” it overlays the results area,
+    // ListPopupWindow), so we fully control its position — it overlays the results area,
     // is bounded by the popup and scrolls, and can never flip off-screen.
     private void setupPopupCountryDropdown() {
         countryListAdapter = new ArrayAdapter<>(requireContext(), R.layout.item_country_dropdown);
@@ -495,11 +495,11 @@ public class RadioEditorDialog extends DialogFragment {
                 details.append(station.country);
             }
             if (station.codec != null && !station.codec.isEmpty()) {
-                if (details.length() > 0) details.append(" Â· ");
+                if (details.length() > 0) details.append(" · ");
                 details.append(station.codec);
             }
             if (station.bitrate > 0) {
-                if (details.length() > 0) details.append(" Â· ");
+                if (details.length() > 0) details.append(" · ");
                 details.append(station.bitrate).append(" kbps");
             }
             holder.binding.stationDetailsTextView.setText(details.toString());

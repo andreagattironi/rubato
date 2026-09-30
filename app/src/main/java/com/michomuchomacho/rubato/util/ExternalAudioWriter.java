@@ -40,7 +40,7 @@ public class ExternalAudioWriter {
     private static final int CONNECT_TIMEOUT_MS = 15_000;
     private static final int READ_TIMEOUT_MS = 60_000;
 
-    // One-off error notification IDs â€” distinct from Path A (1, 2) and Path B (1012, 1013)
+    // One-off error notification IDs — distinct from Path A (1, 2) and Path B (1012, 1013)
     private static final int NO_FOLDER_NOTIFICATION_ID = 1010;
     private static final int FOLDER_ERROR_NOTIFICATION_ID = 1009;
 
@@ -223,7 +223,7 @@ public class ExternalAudioWriter {
                     ExternalDownloadMetadataStore.recordSize(metadataKey, localLength);
                     recordDownload(child, existingFile.getUri(), playlistId, playlistName);
                     ExternalAudioReader.refreshCacheAsync();
-                    // Already exists â€” count as a quiet skip so progress resolves correctly
+                    // Already exists — count as a quiet skip so progress resolves correctly
                     DownloadProgressState.getInstance().onSkipped(context);
                     return;
                 } else {
@@ -297,7 +297,7 @@ public class ExternalAudioWriter {
     }
 
     /**
-     * Shown only when the user hasn't set a download folder at all â€” this is a one-off
+     * Shown only when the user hasn't set a download folder at all — this is a one-off
      * actionable notification that remains separate from the progress flow because the
      * user needs to take action in Settings before anything else can proceed.
      */
@@ -321,7 +321,7 @@ public class ExternalAudioWriter {
     }
 
     /**
-     * Shown only when the download folder exists but is not writable â€” separate from the
+     * Shown only when the download folder exists but is not writable — separate from the
      * progress flow since it indicates a setup problem the user must resolve.
      */
     private static void notifyFolderError(Context context) {

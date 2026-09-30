@@ -108,7 +108,7 @@ public class MainActivity extends BaseActivity {
     // platform persists it over a Binder transaction that throws
     // TransactionTooLargeException once it passes the buffer limit (~1MB), crashing
     // the app on background. Cap it: if the saved state is dangerously large, drop the
-    // restorable fragment state so backgrounding can never crash â€” worst case the app
+    // restorable fragment state so backgrounding can never crash — worst case the app
     // reopens at the start destination instead of dying.
     private static final int MAX_SAVED_STATE_BYTES = 400 * 1024;
 
@@ -448,8 +448,8 @@ public class MainActivity extends BaseActivity {
                         }
                     }
                 });
-                // If a session is already active on (re)connect â€” e.g. radio still playing after
-                // the app was swiped away â€” peek the bar. Radio isn't persisted to the queue DB,
+                // If a session is already active on (re)connect — e.g. radio still playing after
+                // the app was swiped away — peek the bar. Radio isn't persisted to the queue DB,
                 // so the queue-count check (isQueueLoaded) misses it on reopen. onIsPlayingChanged
                 // also won't fire here since playback didn't change state.
                 if (getMediaBrowserListenableFuture().get().getCurrentMediaItem() != null

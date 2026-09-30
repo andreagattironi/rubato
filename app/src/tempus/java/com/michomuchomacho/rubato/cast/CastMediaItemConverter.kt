@@ -31,7 +31,7 @@ class CastMediaItemConverter : MediaItemConverter {
         val artwork = item.mediaMetadata.artworkUri ?: return item
         if (artwork.scheme != ContentResolver.SCHEME_CONTENT) return item
 
-        // content://.../albumArt/<id> â€” the last segment is the cover-art id. Radio covers (rl_/ir_)
+        // content://.../albumArt/<id> — the last segment is the cover-art id. Radio covers (rl_/ir_)
         // aren't server cover ids (local file / arbitrary URL), so leave those untouched.
         val coverArtId = artwork.lastPathSegment ?: return item
         if (coverArtId.startsWith("rl_") || coverArtId.startsWith("ir_")) return item

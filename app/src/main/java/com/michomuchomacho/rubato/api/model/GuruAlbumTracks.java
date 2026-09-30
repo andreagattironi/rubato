@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
 
-/** GET /deezer/album/{id} â€” tracklist per enqueue album. */
+/** GET /deezer/album/{id} — tracklist per enqueue album. */
 public class GuruAlbumTracks {
 
     @SerializedName("id")

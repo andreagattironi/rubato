@@ -387,7 +387,7 @@ public class PlayerControllerFragment extends Fragment {
                     items.add(bitDepth);
                 if (!samplingRate.trim().isEmpty())
                     items.add(samplingRate);
-                String mediaQuality = TextUtils.join(" â€¢ ", items);
+                String mediaQuality = TextUtils.join(" • ", items);
 
                 playerMediaBitrate.setVisibility(Preferences.getBitrateVisible() ? View.VISIBLE : View.GONE);
                 playerMediaBitrate.setText(isLocal ? mediaQuality : mediaQuality);
@@ -692,7 +692,7 @@ public class PlayerControllerFragment extends Fragment {
      * (Re-)registers the UI tick listener with {@link SleepTimerManager}.
      * Called on first bind and whenever the fragment reconnects after rotation.
      * Fade-out and pause are now handled by BaseMediaService via its own
-     * ServiceActionListener â€” this callback only refreshes the UI label.
+     * ServiceActionListener — this callback only refreshes the UI label.
      */
     private void connectSleepTimerTick(MediaBrowser mediaBrowser) {
         SleepTimerManager.getInstance().setTickListener(expired -> updateSleepTimerUI());

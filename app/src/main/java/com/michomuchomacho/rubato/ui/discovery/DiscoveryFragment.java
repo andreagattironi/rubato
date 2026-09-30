@@ -117,7 +117,7 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
             }
         });
         viewModel.getMode().observe(getViewLifecycleOwner(), mode -> {
-            // Entrambi sempre cliccabili: l'attivo si distingue per opacitÃ ,
+            // Entrambi sempre cliccabili: l'attivo si distingue per opacit\u00e0,
             // MAI con setEnabled(false) che uccide il tap (bug visto su Pixel).
             boolean albums = mode == DiscoveryViewModel.Mode.ALBUMS;
             songsButton.setEnabled(true);
@@ -213,7 +213,7 @@ public class DiscoveryFragment extends Fragment implements DiscoveryTrackAdapter
                 });
     }
 
-    /** â¬‡ su un album: tracklist Deezer -> un job per tutto l'album. */
+    /** (download) su un album: tracklist Deezer -> un job per tutto l'album. */
     private void downloadAlbum(GuruDiscoverResponse.GuruTrack track) {
         Toast.makeText(requireContext(), R.string.guru_album_loading, Toast.LENGTH_SHORT).show();
         GuruClient.getInstance().albumTracks(track.albumId)

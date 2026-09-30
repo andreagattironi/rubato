@@ -33,6 +33,13 @@ android {
         unitTests.returnDefaultValues = true
     }
 
+    compileOptions {
+        // I sorgenti sono UTF-8: senza questo, javac su Windows li legge
+        // come windows-1252 e i literal non-ASCII (•, —, …) si corrompono
+        // in mojibake tipo â€¢ gia a compile time.
+        encoding = 'UTF-8'
+    }
+
     splits {
         abi {
             enable = true

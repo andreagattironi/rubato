@@ -99,14 +99,14 @@ public class InstantMixBuilder {
      * Recursively builds an instant mix by fetching tracks from randomly selected albums.
      * Each cycle shuffles the album list and fetches one track from albums[0], then one from albums[1],
      * alternating between the two until maxTracks is reached. The shuffle at the start of each cycle
-     * ensures variety â€” consecutive cycles may pick from completely different albums.
+     * ensures variety — consecutive cycles may pick from completely different albums.
      * -
      * Recursion depth is bounded by maxTracks (capped at INSTANT_MIX_MAX_TRACKS),
      * which matches the minimum total track count required to enable this feature,
      * preventing both infinite loops and stack overflow.
      *
      * @param albums        Full list of artist albums
-     * @param albumIndex    0 or 1 â€” which of the two albums to fetch in this step
+     * @param albumIndex    0 or 1 — which of the two albums to fetch in this step
      * @param mixTracks     Accumulated list of selected tracks
      * @param usedTrackIds  Set of already used track IDs to avoid duplicates
      * @param random        Shared Random instance for shuffling and track picking

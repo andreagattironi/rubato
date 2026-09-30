@@ -7,7 +7,7 @@ import kotlinx.parcelize.Parcelize
 
 /**
  * Corresponds to the OpenSubsonic `ReplayGain` object returned inside a
- * `Child` response. All fields are optional â€” servers that don't implement
+ * `Child` response. All fields are optional — servers that don't implement
  * the OpenSubsonic extension will simply omit the whole object, and
  * individual tags may be missing for tracks that were never scanned.
  *

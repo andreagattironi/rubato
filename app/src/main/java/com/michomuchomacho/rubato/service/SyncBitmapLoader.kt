@@ -19,7 +19,7 @@ import java.util.concurrent.Executors
 // Custom BitmapLoader that returns immediateFuture on cache hits. Works around
 // Media3 MediaSessionLegacyStub pushing an initial setMetadata(bitmap=null) to
 // the legacy AVRCP bridge whenever loadBitmapFromMetadata returns a non-done
-// future â€” Tesla's Bluetooth stack latches on that null-bitmap push and then
+// future — Tesla's Bluetooth stack latches on that null-bitmap push and then
 // ignores the later bitmap arrival when the new bitmap is pixel-identical to
 // the previous track's (same-album tracks on issue #470).
 @UnstableApi

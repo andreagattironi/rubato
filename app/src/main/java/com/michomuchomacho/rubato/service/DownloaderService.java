@@ -28,20 +28,20 @@ public class DownloaderService extends androidx.media3.exoplayer.offline.Downloa
 
     private static final int JOB_ID = 1;
 
-    // Foreground service notification â€” managed by Media3, must stay ID 1
+    // Foreground service notification — managed by Media3, must stay ID 1
     private static final int FOREGROUND_NOTIFICATION_ID = 1;
 
-    // Persistent completion/failure notification â€” fixed ID so updates replace the same one
+    // Persistent completion/failure notification — fixed ID so updates replace the same one
     static final int TERMINAL_NOTIFICATION_ID = 2;
 
-    // Shared speed tracking â€” updated by TerminalStateNotificationHelper, read by getForegroundNotification
+    // Shared speed tracking — updated by TerminalStateNotificationHelper, read by getForegroundNotification
     static volatile float currentSpeedBytesPerSec = 0f;
 
-    // Stable batch counters â€” updated by TerminalStateNotificationHelper, read by getForegroundNotification
+    // Stable batch counters — updated by TerminalStateNotificationHelper, read by getForegroundNotification
     static volatile int batchMaxTotal = 0;
     static volatile int batchCompletedCount = 0;
 
-    // Cache: mediaId â†’ track title, populated lazily in TerminalStateNotificationHelper
+    // Cache: mediaId → track title, populated lazily in TerminalStateNotificationHelper
     private static final ConcurrentHashMap<String, String> trackTitlesCache = new ConcurrentHashMap<>();
 
     public DownloaderService() {
@@ -70,7 +70,7 @@ public class DownloaderService extends androidx.media3.exoplayer.offline.Downloa
 
     /**
      * Overrides the foreground (progress) notification to show "Downloading TrackName" with
-     * "X of N â€¢ speed" and stable batch counters that don't shrink as Media3 removes completed
+     * "X of N • speed" and stable batch counters that don't shrink as Media3 removes completed
      * downloads from its active list (see bug #11).
      *
      * <p>Called by Media3 on the service thread each time the download queue changes.
@@ -113,8 +113,8 @@ public class DownloaderService extends androidx.media3.exoplayer.offline.Downloa
             int currentIndex = Math.min(completed + 1, total);
             contentText = getString(R.string.notification_download_progress_format, currentIndex, total);
             contentText += currentSpeedBytesPerSec > 0f
-                    ? " â€¢ " + formatSpeed(currentSpeedBytesPerSec)
-                    : " â€¢ ? KB/s";
+                    ? " • " + formatSpeed(currentSpeedBytesPerSec)
+                    : " • ? KB/s";
         } else {
             contentText = getString(R.string.notification_downloading_progress);
         }
@@ -142,14 +142,14 @@ public class DownloaderService extends androidx.media3.exoplayer.offline.Downloa
     }
 
     // -------------------------------------------------------------------------
-    // Terminal-state listener â€” consolidates completed/failed into ONE notification
+    // Terminal-state listener — consolidates completed/failed into ONE notification
     // -------------------------------------------------------------------------
 
     private static final class TerminalStateNotificationHelper implements DownloadManager.Listener {
 
         private final Context context;
 
-        // Counters reset at start of each "batch" (when queue goes from empty â†’ non-empty)
+        // Counters reset at start of each "batch" (when queue goes from empty → non-empty)
         private final AtomicInteger completedCount = new AtomicInteger(0);
         private final AtomicInteger failedCount = new AtomicInteger(0);
 
@@ -183,7 +183,7 @@ public class DownloaderService extends androidx.media3.exoplayer.offline.Downloa
 
                 case Download.STATE_RESTARTING:
                 case Download.STATE_STOPPED:
-                    // Not terminal â€” nothing to do
+                    // Not terminal — nothing to do
                     return;
 
                 case Download.STATE_COMPLETED:

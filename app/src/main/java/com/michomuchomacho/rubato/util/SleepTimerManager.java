@@ -205,7 +205,7 @@ public class SleepTimerManager {
                 if (volume[0] > 0f) {
                     handler.postDelayed(this, stepMs);
                 } else {
-                    // Fade complete â€” cancel the timer and pause.
+                    // Fade complete — cancel the timer and pause.
                     cancelTimer();
                     player.pause();
                     handler.postDelayed(() -> player.setVolume(1f), 300);
@@ -337,7 +337,7 @@ public class SleepTimerManager {
         long savedEndTime = prefs.getLong(PREF_END_TIME_MS, 0);
 
         if (savedEndOfTrack) {
-            // Restore end-of-track mode â€” no ticking, just re-arm the flag.
+            // Restore end-of-track mode — no ticking, just re-arm the flag.
             endOfTrack = true;
             active = true;
         } else if (savedEndTime > System.currentTimeMillis()) {

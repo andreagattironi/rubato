@@ -54,7 +54,7 @@ public class ArtistBottomSheetViewModel extends AndroidViewModel {
 
     /**
      * Lazily fetches and caches all tracks for the current artist.
-     * Safe to call multiple times â€” only one network batch is started per artist.
+     * Safe to call multiple times — only one network batch is started per artist.
      */
     public LiveData<List<Child>> getArtistAllTracks() {
         if (artistAllTracks == null) {

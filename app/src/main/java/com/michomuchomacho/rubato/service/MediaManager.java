@@ -432,8 +432,8 @@ public class MediaManager {
         }
     }
 
-    // "Play next": insert the items right after the current item on the timeline, then â€”
-    // once the insert has actually applied â€” ask the service to move them next in the
+    // "Play next": insert the items right after the current item on the timeline, then —
+    // once the insert has actually applied — ask the service to move them next in the
     // ExoPlayer shuffle order too. The shuffle order fixup must run on the service (only it
     // can setShuffleOrder), and it cannot run until the insert is visible on the timeline
     // (from a controller, addMediaItems updates the controller optimistically before the

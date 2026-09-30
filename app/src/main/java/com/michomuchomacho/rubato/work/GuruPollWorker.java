@@ -194,7 +194,7 @@ public class GuruPollWorker extends Worker {
 
     static final String GURU_CHANNEL_ID = "guru_channel";
 
-    /** Canale dedicato ad alta importanza: quello dei download Media3 è
+    /** Canale dedicato ad alta importanza: quello dei download Media3 e
      * silenzioso (progress), qui serve heads-up + suono a lavoro finito. */
     static void ensureGuruChannel(Context context) {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return;

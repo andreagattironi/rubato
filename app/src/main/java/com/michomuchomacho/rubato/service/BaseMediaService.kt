@@ -120,14 +120,14 @@ open class BaseMediaService : MediaLibraryService(), MediaManager.QueueTarget {
         // interrupting the currently-playing track. The previous implementation called
         // clearMediaItems() + setMediaItems() over the live player, which discards the
         // active item's forward buffer and forces a re-prepare on every WiFi<->cellular
-        // switch â€” an audible ~0.5s gap (and, on some devices, the failed re-prepare that
+        // switch — an audible ~0.5s gap (and, on some devices, the failed re-prepare that
         // #682 recovers from). Instead, replace only the non-current items, and only when
         // the resolved URI actually changed, so the active item is never touched while
         // upcoming tracks still pick up the new network's transcoding settings.
 
         // Threading: the heavy computation (MappingUtil + isDownloaded) runs on a background
         // thread to avoid blocking the main thread. Only items from current+1 onward are
-        // processed â€” already-played items are skipped. replaceMediaItem() is dispatched back
+        // processed — already-played items are skipped. replaceMediaItem() is dispatched back
         // to the main thread via widgetUpdateHandler. The guard i < player.mediaItemCount protects
         // against queue changes during the background computation.
 
@@ -193,8 +193,8 @@ open class BaseMediaService : MediaLibraryService(), MediaManager.QueueTarget {
         val player = exoplayer
         while (playNextQueue.isNotEmpty()) {
             val req = playNextQueue.first()
-            if (player.mediaItemCount < req.target) return  // insert not visible yet â€” wait for onTimelineChanged
-            if (player.mediaItemCount != req.target) {       // count drifted â€” drop the stale request
+            if (player.mediaItemCount < req.target) return  // insert not visible yet — wait for onTimelineChanged
+            if (player.mediaItemCount != req.target) {       // count drifted — drop the stale request
                 playNextQueue.removeFirst()
                 continue
             }
@@ -312,7 +312,7 @@ open class BaseMediaService : MediaLibraryService(), MediaManager.QueueTarget {
                 if (mediaItem == null) return
                 ReplayGainUtil.applyGain(player, mediaItem)
 
-                // --- Add for AA : Constants.AA_START_INDEX if prÃ©sent ---
+                // --- Add for AA : Constants.AA_START_INDEX if présent ---
                 val extras = mediaItem.mediaMetadata.extras
                 val startIndex = extras?.getInt(Constants.AA_START_INDEX, -1) ?: -1
                 if (startIndex >= 0 ) {

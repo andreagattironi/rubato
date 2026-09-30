@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
 
-/** GET /discover â€” type=track|album|artist (Deezer). */
+/** GET /discover — type=track|album|artist (Deezer). */
 public class GuruDiscoverResponse {
 
     @SerializedName("query")

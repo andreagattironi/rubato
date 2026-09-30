@@ -23,7 +23,7 @@ public class SleepTimerDialog extends DialogFragment {
         default void onEndOfTrackSet() {}
     }
 
-    // Sentinel values â€” must not collide with real minute counts.
+    // Sentinel values — must not collide with real minute counts.
     private static final int END_OF_TRACK = -2;
     private static final int CUSTOM       = -1;
 

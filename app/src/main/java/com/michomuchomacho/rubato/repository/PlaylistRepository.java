@@ -239,7 +239,7 @@ public class PlaylistRepository {
             // playlist_song has a foreign key to playlist.id, so the playlist row must
             // exist before its songs are inserted. The full-list path caches playlists via
             // cacheAllPlaylists, but the single-playlist endpoint (used by deep links) does
-            // not â€” without this the songs insert crashes with a FOREIGN KEY constraint.
+            // not — without this the songs insert crashes with a FOREIGN KEY constraint.
             // Insert before the early-return dedup checks so the row is ensured even when
             // the songs are already cached. See issue #729.
             playlistDao.insertIfAbsent(playlist);

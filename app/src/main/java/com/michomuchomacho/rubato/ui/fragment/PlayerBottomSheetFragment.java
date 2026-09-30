@@ -97,9 +97,9 @@ public class PlayerBottomSheetFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         // #777: cancel the self-reposting progress updater. Otherwise its pending
-        // Handler message keeps this destroyed fragment alive â€” and, via the
+        // Handler message keeps this destroyed fragment alive — and, via the
         // MediaBrowser the runnable captures, the whole MainActivity and its
-        // cover-art bitmaps â€” leaking ~3MB per Activity recreation until OOM.
+        // cover-art bitmaps — leaking ~3MB per Activity recreation until OOM.
         if (progressBarHandler != null) {
             progressBarHandler.removeCallbacks(progressBarRunnable);
         }

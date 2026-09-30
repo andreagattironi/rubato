@@ -241,8 +241,8 @@ public class MadeForYouBuilder {
      * Returns the next MixStep based on current cycleIndex and mode, and reshuffles
      * source lists when a cycle completes.
 
-     * QUICK_MIX:     cycle of 2 â€” recent[0], recent[1], then reshuffle
-     * MY_MIX:        cycle of 4 â€” recent, starred (album OR artist) Ã— 2, then reshuffle
+     * QUICK_MIX:     cycle of 2 — recent[0], recent[1], then reshuffle
+     * MY_MIX:        cycle of 4 — recent, starred (album OR artist) × 2, then reshuffle
      *                starred source depends on Preferences.isStarredAlbumsForMadeForYouEnabled()
      * DISCOVERY_MIX: same cycle as MY_MIX, similar songs handled separately
      */
@@ -255,7 +255,7 @@ public class MadeForYouBuilder {
             List<Child> starredTracks) {
 
         if (mixType.equals(ConstantsAA.QUICKMIX_ID)) {
-            // cycle of 2: recent[0] â†’ recent[1] â†’ shuffle â†’ repeat
+            // cycle of 2: recent[0] → recent[1] → shuffle → repeat
             int posInCycle = cycleIndex % 2;
             if (posInCycle == 0) {
                 Log.d(TAG, mixType + " Shuffle collections");
@@ -264,7 +264,7 @@ public class MadeForYouBuilder {
             return MixStep.RECENT;
         } else {
             // MY_MIX and DISCOVERY_MIX: cycle of 4
-            // Recent â†’ STARRED â†’ Recent â†’ STARRED â†’ shuffle â†’ repeat
+            // Recent → STARRED → Recent → STARRED → shuffle → repeat
             int posInCycle = cycleIndex % 4;
             if (posInCycle == 0) {
                 Log.d(TAG, mixType + " Shuffle collections");
@@ -437,7 +437,7 @@ public class MadeForYouBuilder {
      * then attempts to fetch one similar song (DISCOVERY_MIX only) before continuing.
 
      * @param albumId   Album to fetch tracks from
-     * @param fromStep  The step that triggered this fetch â€” used to determine the next step
+     * @param fromStep  The step that triggered this fetch — used to determine the next step
      * @param mixType   Controls whether similar songs are fetched after each track
      */
     private void fetchTrackThenSimilar(
@@ -639,7 +639,7 @@ public class MadeForYouBuilder {
     }
 
     /**
-     * Fallback when no context is available â€” enqueues random songs directly.
+     * Fallback when no context is available — enqueues random songs directly.
      */
     private void fallbackToRandomSongs(
             int count,
