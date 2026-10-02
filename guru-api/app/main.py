@@ -824,6 +824,29 @@ async def enqueue(req: EnqueueReq, _: None = Depends(check_auth)) -> dict:
 MAX_FETCH_RETRIES = 5
 
 
+class BlockReq(BaseModel):
+    user: str
+    hours: int = 24
+    unblock: bool = False
+
+
+@app.post("/slskd/block")
+async def block_peer(req: BlockReq, _: None = Depends(check_auth)) -> dict:
+    """Blocca/sblocca un peer slskd (blocklist 24h, auto-expire)."""
+    if not req.user.strip():
+        raise HTTPException(400, "user vuoto")
+    args = ["block-peer", req.user.strip()]
+    if req.unblock:
+        args.append("--unblock")
+    else:
+        args += ["--hours", str(max(1, req.hours))]
+    res = await run_cli(*args, timeout=60)
+    if res["rc"] != 0:
+        raise HTTPException(500, (res["stderr"] or res["stdout"])[-300:])
+    return {"user": req.user.strip(), "unblocked": req.unblock,
+            "output": (res["stdout"] or res["stderr"])[-300:]}
+
+
 @app.post("/slskd/retry/{job_id}", status_code=202)
 async def retry_fetch(job_id: str, _: None = Depends(check_auth)) -> dict:
     """Rilancia il fetch di un job `done` senza file (peer non trovati):
