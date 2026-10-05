@@ -10,6 +10,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import secrets
 import time
 import urllib.parse
@@ -182,6 +183,22 @@ def _fetch_worker_done_files(snapshot: dict) -> list[str]:
 
 
 async def _fetch_worker(job_id: str, json_path: str, strategy: str = "track") -> None:
+    try:
+        await _fetch_worker_inner(job_id, json_path, strategy)
+    except Exception as exc:  # mai lasciare un job appeso in running
+        try:
+            async with _lock:
+                jobs = _load_jobs()
+                if jobs.get(job_id, {}).get("status") == "running":
+                    jobs[job_id]["status"] = "failed"
+                    jobs[job_id]["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                    jobs[job_id]["cli_tail"] = f"worker crash: {type(exc).__name__}: {exc}"[:500]
+                    _save_jobs(jobs)
+        except Exception:
+            pass
+
+
+async def _fetch_worker_inner(job_id: str, json_path: str, strategy: str = "track") -> None:
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id]["status"] = "running"
@@ -272,19 +289,33 @@ _GENERIC_ARTIST_WORDS = frozenset((
 
 
 def _path_has_artist(path: str, artist: str) -> bool:
-    """True se un token distintivo dell'artista sta nel percorso.
-    Evita di importare omonimi altrui (es. 'Cuban Pete' di Louis
-    Armstrong per un job di Tito Puente). Meglio saltare che sbagliare."""
+    """True se il file puo essere dell'artista: token distintivo nel path,
+    OPPURE nessun artista alternativo dichiarato nel filename.
+    Scarta solo con prova positiva di un ALTRO artista (es. "… - Louis
+    Armstrong …" per un job di Tito Puente). Mai scartare per assenza
+    (cartelle solo-album come "Hopes and Fears (2004)" sono legittime:
+    decide poi il lookup di retag)."""
     import re as _re
-    toks = [t for t in _re.sub(r"[^a-z0-9 ]", " ", artist.lower()).split()
-            if len(t) > 2 and t not in _GENERIC_ARTIST_WORDS]
+    toks = {t for t in _re.sub(r"[^a-z0-9 ]", " ", artist.lower()).split()
+            if len(t) > 2 and t not in _GENERIC_ARTIST_WORDS}
     if not toks:
         return True  # niente di distintivo: non bloccare
     flat = _re.sub(r"[^a-z0-9]", "", path.lower())
     if any(t in flat for t in toks):
         return True
     words = set(_re.sub(r"[^a-z0-9 ]", " ", path.lower()).split())
-    return any(t in words for t in toks)
+    if any(t in words for t in toks):
+        return True
+    base = path.split("/")[-1]
+    base = _re.sub(r"^[0-9.\s\-_]+", "", base)
+    base = _re.sub(r"[_\-]+", " ", base)
+    base = re.sub(r"\.(flac|mp3|m4a|opus|ogg)$", "", base, flags=re.I)
+    claim = base.split(" - ")[0].strip() if " - " in base else ""
+    if len(claim) >= 4:
+        ctoks = {t for t in _tokens(claim) if t not in _GENERIC_ARTIST_WORDS}
+        if ctoks and not (ctoks & toks):
+            return False
+    return True
 
 
 def _find_downloads(artist: str, title: str, since_ts: float) -> list[Path]:
@@ -402,6 +433,23 @@ def _manifest_touches_library(m: Path) -> str:
 
 async def _import_worker(job_id: str, artist: str | None, full: bool,
                        fetch_job_id: str | None) -> None:
+    try:
+        await _import_worker_inner(job_id, artist, full, fetch_job_id)
+    except Exception as exc:  # mai lasciare un job appeso in running
+        try:
+            async with _lock:
+                jobs = _load_jobs()
+                if jobs.get(job_id, {}).get("status") == "running":
+                    jobs[job_id]["status"] = "failed"
+                    jobs[job_id]["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                    jobs[job_id]["cli_tail"] = f"worker crash: {type(exc).__name__}: {exc}"[:500]
+                    _save_jobs(jobs)
+        except Exception:
+            pass
+
+
+async def _import_worker_inner(job_id: str, artist: str | None, full: bool,
+                             fetch_job_id: str | None) -> None:
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id]["status"] = "running"
