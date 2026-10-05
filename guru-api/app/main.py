@@ -197,11 +197,9 @@ async def _fetch_worker(job_id: str, json_path: str, strategy: str = "track") ->
                 files = sorted(cand)
                 break
             await asyncio.sleep(30)
-        if not files:
-            # fallback: tutti i nuovi (meglio importare qualcosa da scremare
-            # che perdere il download lento)
-            files = sorted(p for p in _snapshot_downloads()
-                           if p not in snap and p.endswith(AUDIO_EXT_TUPLE))
+        # NIENTE fallback "prendi tutto": i file altrui arrivati nel frattempo
+        # non sono nostri (il gate artista li scarterebbe comunque); meglio
+        # 0 file + retry che un import estraneo.
     async with _lock:
         jobs = _load_jobs()
         jobs[job_id]["status"] = "done" if res["rc"] == 0 else "failed"
@@ -438,6 +436,21 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
                 staging_info["rejected_artist_mismatch"] = dropped
                 note.append(f"staging: scartati {len(dropped)} file di altri artisti")
             cands = kept
+            if not cands and staging_info.get("exact"):
+                # gli "esatti" erano tutti altrui (fallback storico errato):
+                # riprova col legacy matching sul job
+                match_title = fj.get("album", "") if ftitle.startswith("[") else ftitle
+                try:
+                    since = time.mktime(time.strptime(
+                        fj.get("created_at", "2000-01-01T00:00:00"),
+                        "%Y-%m-%dT%H:%M:%S")) - 300
+                except ValueError:
+                    since = 0
+                cands = [p for p in _find_downloads(fart, match_title, since)
+                         if _path_has_artist(str(p), fart)]
+                staging_info["legacy_fallback"] = [str(p) for p in cands]
+                if cands:
+                    note.append(f"staging: legacy fallback trova {len(cands)} file")
         if cands:
             import shutil
             stage = STAGING_ROOT / fetch_job_id
