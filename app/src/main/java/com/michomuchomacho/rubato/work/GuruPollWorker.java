@@ -41,11 +41,15 @@ public class GuruPollWorker extends Worker {
 
     private static final String TAG = "GuruPollWorker";
     private static final int MAX_ATTEMPTS = 120;
+    /** I worker più vecchi di così muoiono in silenzio: niente notifiche
+     * fantasma giorni dopo per job che l'utente ha già dimenticato. */
+    private static final long MAX_AGE_MS = 24L * 3600 * 1000;
 
     public static final String KEY_JOB_ID = "job_id";
     public static final String KEY_IMPORT_JOB_ID = "import_job_id";
     public static final String KEY_ARTIST = "artist";
     public static final String KEY_TITLE = "title";
+    public static final String KEY_CREATED_AT = "created_at";
 
     public GuruPollWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -57,6 +61,7 @@ public class GuruPollWorker extends Worker {
                 .putString(KEY_JOB_ID, jobId)
                 .putString(KEY_ARTIST, artist)
                 .putString(KEY_TITLE, title)
+                .putLong(KEY_CREATED_AT, System.currentTimeMillis())
                 .build();
         OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(GuruPollWorker.class)
                 .setInputData(input)
@@ -78,6 +83,12 @@ public class GuruPollWorker extends Worker {
         }
         if (getRunAttemptCount() > MAX_ATTEMPTS) {
             notifyTerminal(false, "Timed out waiting for the Pi \u2014 check manually");
+            return Result.failure();
+        }
+        long ageMs = System.currentTimeMillis()
+                - getInputData().getLong(KEY_CREATED_AT, System.currentTimeMillis());
+        if (ageMs > MAX_AGE_MS) {
+            Log.w(TAG, "work troppo vecchio (" + (ageMs / 3600000) + "h), muore in silenzio");
             return Result.failure();
         }
 
@@ -130,6 +141,9 @@ public class GuruPollWorker extends Worker {
                         .putString(KEY_IMPORT_JOB_ID, imp.body().jobId)
                         .putString(KEY_ARTIST, artist)
                         .putString(KEY_TITLE, title)
+                        .putLong(KEY_CREATED_AT,
+                                getInputData().getLong(KEY_CREATED_AT,
+                                        System.currentTimeMillis()))
                         .build();
                 OneTimeWorkRequest followUp = new OneTimeWorkRequest.Builder(GuruPollWorker.class)
                         .setInputData(next)

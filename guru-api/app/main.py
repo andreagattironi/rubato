@@ -73,6 +73,26 @@ def _save_jobs(jobs: dict) -> None:
     tmp.replace(JOBS_FILE)
 
 
+def _sweep_stale_jobs() -> None:
+    """All'avvio: i job rimasti running/queued sono orfani di un worker
+    morto col restart. Marchiali failed invece di lasciarli appesi."""
+    try:
+        jobs = _load_jobs()
+        changed = False
+        for j in jobs.values():
+            if j.get("status") in ("running", "queued"):
+                j["status"] = "failed"
+                j["note"] = "stale: servizio riavviato mentre girava"
+                changed = True
+        if changed:
+            _save_jobs(jobs)
+    except Exception:
+        pass
+
+
+_sweep_stale_jobs()
+
+
 # --- helpers ------------------------------------------------------------------
 async def run_cli(*args: str, timeout: int = 600) -> dict:
     """Esegue `music_guru.py ...`, ritorna {rc, stdout, stderr}."""
@@ -219,6 +239,30 @@ def _tokens(s: str) -> list[str]:
 def _looks_compilation(name: str) -> bool:
     n = name.lower()
     return any(h in n for h in _COMP_HINTS)
+
+
+_GENERIC_ARTIST_WORDS = frozenset((
+    "orchestra", "band", "trio", "quartet", "quintet", "sextet",
+    "project", "collective", "ensemble", "singers", "choir", "chorus",
+    "group", "brothers", "sisters", "family", "experience", "machine",
+    "sound", "system", "his", "her", "the", "and", "with", "feat",
+))
+
+
+def _path_has_artist(path: str, artist: str) -> bool:
+    """True se un token distintivo dell'artista sta nel percorso.
+    Evita di importare omonimi altrui (es. 'Cuban Pete' di Louis
+    Armstrong per un job di Tito Puente). Meglio saltare che sbagliare."""
+    import re as _re
+    toks = [t for t in _re.sub(r"[^a-z0-9 ]", " ", artist.lower()).split()
+            if len(t) > 2 and t not in _GENERIC_ARTIST_WORDS]
+    if not toks:
+        return True  # niente di distintivo: non bloccare
+    flat = _re.sub(r"[^a-z0-9]", "", path.lower())
+    if any(t in flat for t in toks):
+        return True
+    words = set(_re.sub(r"[^a-z0-9 ]", " ", path.lower()).split())
+    return any(t in words for t in toks)
 
 
 def _find_downloads(artist: str, title: str, since_ts: float) -> list[Path]:
@@ -385,6 +429,15 @@ async def _import_worker(job_id: str, artist: str | None, full: bool,
                     cands = _find_downloads(fart, match_title, since)
                     staging_info["legacy_match"] = True
         staging_info["candidates"] = [str(p) for p in cands]
+        # gate artista: scarta candidati senza token distintivo nel path
+        # (omonimi di altri artisti non entrano mai in libreria)
+        if cands and fart:
+            kept = [p for p in cands if _path_has_artist(str(p), fart)]
+            dropped = [str(p) for p in cands if str(p) not in {str(q) for q in kept}]
+            if dropped:
+                staging_info["rejected_artist_mismatch"] = dropped
+                note.append(f"staging: scartati {len(dropped)} file di altri artisti")
+            cands = kept
         if cands:
             import shutil
             stage = STAGING_ROOT / fetch_job_id
@@ -798,7 +851,33 @@ async def health() -> dict:
 
 @app.post("/slskd/enqueue", status_code=202)
 async def enqueue(req: EnqueueReq, _: None = Depends(check_auth)) -> dict:
-    """Crea un job e lancia `fetch --strategy track` in background."""
+    """Crea un job e lancia `fetch --strategy track` in background.
+    Idempotente: stesso artista+titolo nelle ultime 6h -> ritorna il job
+    esistente (niente doppi download da doppio tap)."""
+    if not req.artist.strip() or not req.title.strip():
+        raise HTTPException(400, "artist e title richiesti")
+    async with _lock:
+        jobs = _load_jobs()
+        now_ts = time.time()
+        for jid, j in jobs.items():
+            if j.get("kind") != "fetch" or j.get("status") in ("failed",):
+                continue
+            try:
+                age = now_ts - time.mktime(time.strptime(
+                    j.get("created_at", "2000-01-01T00:00:00"), "%Y-%m-%dT%H:%M:%S"))
+            except ValueError:
+                continue
+            # job appesi (running/queued da >1h, es. restart servizio):
+            # marchiali falliti, non bloccarne di nuovi
+            if j.get("status") in ("running", "queued") and age > 3600:
+                j["status"] = "failed"
+                j["note"] = "stale: worker morto (restart servizio?)"
+                _save_jobs(jobs)
+                continue
+            if age < 6 * 3600 and _norm_name(j.get("artist", "")) == _norm_name(req.artist) \
+                    and _norm_name(j.get("title", "")) == _norm_name(req.title):
+                return {"job_id": jid, "status": j.get("status"),
+                        "dry_run": j.get("dry_run", DRY_RUN), "duplicate": True}
     job_id = secrets.token_hex(6)
     payload = {
         "artist": req.artist, "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
