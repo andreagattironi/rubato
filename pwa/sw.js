@@ -1,5 +1,5 @@
 /* Rubato Guru PWA — app-shell cache, API sempre rete. */
-const CACHE = 'rubato-guru-v1';
+const CACHE = 'rubato-guru-v2';
 const SHELL = ['/app/', '/app/index.html', '/app/style.css', '/app/app.js',
   '/app/manifest.webmanifest', '/app/icons/icon-192.png', '/app/icons/icon-512.png'];
 

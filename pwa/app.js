@@ -75,22 +75,26 @@ function bindDownloads(container, items, kind) {
       if (!item) return;
       btn.disabled = true;
       try {
+        let jobId = null;
         if (kind === 'album') {
           const al = await api('/deezer/album/' + item.id);
           const titles = (al.tracks || []).map((t) => t.title).filter(Boolean);
           if (!titles.length) throw new Error('tracklist vuota');
-          await api('/slskd/enqueue-album', {
+          const acc = await api('/slskd/enqueue-album', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ artist: item.artist, album: item.title, tracks: titles }),
           });
+          jobId = acc.job_id;
         } else {
-          await api('/slskd/enqueue', {
+          const acc = await api('/slskd/enqueue', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ artist: item.artist, title: item.title, album: item.album || null }),
           });
+          jobId = acc.job_id;
         }
+        if (jobId) watch(jobId, 'fetch');
         $('searchInfo').textContent = 'Accodato — ti avviso qui sotto quando è pronto.';
         loadJobs();
       } catch (e) {
@@ -99,6 +103,74 @@ function bindDownloads(container, items, kind) {
       }
     });
   });
+}
+
+/* ---------- auto-import chain (come il Worker su Android) ---------- */
+function getWatched() {
+  try {
+    return JSON.parse(localStorage.getItem('guru_watch') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function setWatched(list) {
+  localStorage.setItem('guru_watch', JSON.stringify(list.slice(-20)));
+}
+
+function watch(id, phase) {
+  const w = getWatched().filter((x) => x.id !== id);
+  w.push({ id: id, phase: phase || 'fetch' });
+  setWatched(w);
+}
+
+function unwatch(id) {
+  setWatched(getWatched().filter((x) => x.id !== id));
+}
+
+async function checkWatched() {
+  const watched = getWatched();
+  if (!watched.length || needCfg()) return;
+  for (const w of watched) {
+    try {
+      const st = await api('/slskd/status/' + w.id);
+      if (st.status === 'failed') {
+        unwatch(w.id);
+        continue;
+      }
+      if (st.status !== 'done') continue;
+      if (w.phase === 'fetch') {
+        const files = st.files || [];
+        if (!files.length) {
+          // niente file: riprova il fetch (server: max tentativi)
+          try {
+            await api('/slskd/retry/' + w.id, { method: 'POST' });
+          } catch (e) {
+            if (String(e.message).indexOf('410') >= 0) unwatch(w.id);
+          }
+          continue;
+        }
+        const imp = await api('/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_id: w.id }),
+        });
+        if (imp.job_id) watch(imp.job_id, 'import');
+        unwatch(w.id);
+      } else {
+        unwatch(w.id); // import done/failed: la lista job mostra l'esito
+      }
+    } catch (e) {
+      /* riprova al prossimo giro */
+    }
+  }
+  loadJobs();
+}
+
+function startChainPoll() {
+  if (window._chainTimer) clearInterval(window._chainTimer);
+  checkWatched();
+  window._chainTimer = setInterval(checkWatched, 20000);
 }
 
 /* ---------- jobs ---------- */
@@ -129,6 +201,7 @@ function startJobsPoll() {
   if (jobsTimer) clearInterval(jobsTimer);
   loadJobs();
   jobsTimer = setInterval(loadJobs, 15000);
+  startChainPoll();
 }
 
 /* ---------- wire ---------- */
