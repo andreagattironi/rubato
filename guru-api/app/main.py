@@ -35,6 +35,19 @@ JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="guru-api", version="0.1.0")
 
+try:
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=os.environ.get("GURU_CORS_ORIGINS", "*").split(","),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
+except ImportError:  # pragma: no cover - starlette sempre presente con fastapi
+    pass
+
 
 @app.middleware("http")
 async def _no_store(request, call_next):
@@ -43,6 +56,17 @@ async def _no_store(request, call_next):
     resp.headers["Cache-Control"] = "no-store, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp
+
+
+STATIC_DIR = Path(os.environ.get("GURU_STATIC_DIR", "/home/micho/guru-api/static"))
+try:
+    from fastapi.staticfiles import StaticFiles
+
+    if STATIC_DIR.is_dir():
+        app.mount("/app", StaticFiles(directory=str(STATIC_DIR), html=True),
+                  name="pwa")
+except ImportError:  # pragma: no cover
+    pass
 
 
 # --- auth --------------------------------------------------------------------
@@ -1012,6 +1036,28 @@ async def slskd_queue(_: None = Depends(check_auth)) -> dict:
     """Passthrough read-only di `music_guru.py queue` (scrive su stderr)."""
     res = await run_cli("queue", timeout=120)
     return {"rc": res["rc"], "output": res["stdout"] or res["stderr"]}
+
+
+@app.get("/slskd/jobs")
+async def recent_jobs(limit: int = Query(default=20, ge=1, le=100),
+                      _: None = Depends(check_auth)) -> dict:
+    """Ultimi job (fetch+import) per la vista Downloads della PWA/app."""
+    jobs = _load_jobs()
+    items = sorted(jobs.items(), key=lambda kv: kv[1].get("created_at", ""),
+                   reverse=True)[:limit]
+    out = []
+    for jid, j in items:
+        jj = {"job_id": jid, **{k: j.get(k) for k in
+              ("kind", "status", "artist", "title", "album", "created_at",
+               "finished_at", "dry_run", "retries")}}
+        st = j.get("staging", {}) or {}
+        if st.get("moved") or st.get("dest"):
+            jj["moved"] = st.get("moved", len(st.get("dest", [])))
+        sc = j.get("scan", {}) or {}
+        if sc.get("triggered"):
+            jj["scan"] = sc.get("scanType", sc.get("level", ""))
+        out.append(jj)
+    return {"jobs": out}
 
 
 @app.post("/import", status_code=202)

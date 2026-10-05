@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#040006">
+<title>Rubato Guru — Soulseek download</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rubato Guru">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Rubato <span>guru</span></h1>
+  <button id="cfgToggle" aria-label="Impostazioni">⚙</button>
+</header>
+
+<section id="cfg" hidden>
+  <h2>Connessione</h2>
+  <label>guru-api URL
+    <input id="cfgUrl" type="url" inputmode="url" placeholder="https://guru.example.com" autocomplete="off">
+  </label>
+  <label>Token
+    <input id="cfgToken" type="password" placeholder="GURU_API_TOKEN" autocomplete="off">
+  </label>
+  <button id="cfgSave">Salva</button>
+  <p id="cfgState"></p>
+</section>
+
+<main>
+  <section id="searchBox">
+    <div id="typeRow">
+      <button data-type="track" class="on">Brani</button>
+      <button data-type="album">Album</button>
+    </div>
+    <form id="searchForm">
+      <input id="q" type="search" placeholder="Cerca musica da scaricare…" autocomplete="off" minlength="2">
+      <button type="submit">🔍</button>
+    </form>
+    <p id="searchInfo"></p>
+    <ul id="results"></ul>
+  </section>
+
+  <section id="jobsBox">
+    <h2>Download <button id="jobsRefresh" aria-label="Aggiorna">↻</button></h2>
+    <ul id="jobs"></ul>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
