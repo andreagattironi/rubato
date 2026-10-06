@@ -595,6 +595,8 @@
     <string name="guru_job_progress">Downloading via Soulseek…</string>
     <string name="menu_discovery_label">Discovery</string>
     <string name="home_section_discovery">Discovery</string>
+    <string name="home_section_queue">Coda</string>
+    <string name="queue_empty">Nessun download recente</string>
     <string name="settings_discovery_section">Discovery tab</string>
     <string name="settings_discovery_section_summary">Show new music and recommendations on Home</string>    <string name="discovery_hint">Search new music to download…</string>
     <string name="discovery_empty">Search above for music outside your library</string>

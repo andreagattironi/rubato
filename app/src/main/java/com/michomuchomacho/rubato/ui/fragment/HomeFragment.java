@@ -91,6 +91,9 @@ public class HomeFragment extends Fragment {
         if (Preferences.isDiscoverySectionVisible())
             pager.addFragment(new com.michomuchomacho.rubato.ui.discovery.DiscoveryFragment(), getString(R.string.home_section_discovery), R.drawable.ic_search);
 
+        if (Preferences.isGuruConfigured())
+            pager.addFragment(new com.michomuchomacho.rubato.ui.queue.QueueFragment(), getString(R.string.home_section_queue), R.drawable.ic_file_download);
+
         if (Preferences.isPodcastSectionVisible())
             pager.addFragment(new HomeTabPodcastFragment(), getString(R.string.home_section_podcast), R.drawable.ic_graphic_eq);
 

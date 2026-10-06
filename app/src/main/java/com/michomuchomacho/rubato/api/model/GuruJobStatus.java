@@ -32,6 +32,15 @@ public class GuruJobStatus {
     @SerializedName("files")
     public java.util.List<String> files;
 
+    @SerializedName("moved")
+    public Integer moved;
+
+    @SerializedName("scan")
+    public String scan;
+
+    @SerializedName("retries")
+    public Integer retries;
+
     public boolean isDone() {
         return "done".equals(status);
     }

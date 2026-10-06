@@ -137,4 +137,8 @@ public class GuruClient {
     public Call<Map<String, Object>> queue() {
         return service.queue();
     }
+
+    public Call<com.michomuchomacho.rubato.api.model.GuruJobsResponse> jobs(int limit) {
+        return service.jobs(limit);
+    }
 }

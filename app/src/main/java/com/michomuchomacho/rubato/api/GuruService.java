@@ -14,6 +14,7 @@ import com.michomuchomacho.rubato.api.model.GuruEnqueueRequest;
 import com.michomuchomacho.rubato.api.model.GuruImportRequest;
 import com.michomuchomacho.rubato.api.model.GuruJobAccepted;
 import com.michomuchomacho.rubato.api.model.GuruJobStatus;
+import com.michomuchomacho.rubato.api.model.GuruJobsResponse;
 import com.michomuchomacho.rubato.api.model.GuruRecommendResponse;
 
 /** Retrofit interface per guru-api (Pi). Auth: Bearer via interceptor in GuruClient. */
@@ -52,6 +53,9 @@ public interface GuruService {
 
     @GET("slskd/queue")
     Call<java.util.Map<String, Object>> queue();
+
+    @GET("slskd/jobs")
+    Call<GuruJobsResponse> jobs(@Query("limit") int limit);
 
     @POST("import")
     Call<GuruJobAccepted> importJob(@Body GuruImportRequest request);
