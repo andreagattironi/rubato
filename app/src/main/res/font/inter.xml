@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Rubato: Shippori Antique B1 (solo peso 400) al posto di Inter.
-     Tutti i pesi mappano sul Regular; il grassetto è sintetizzato. -->
+<!-- Rubato: Rubik (pesi veri 400/500/700) al posto di Inter. -->
 <font-family
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="100" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="200" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="300" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="400" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="500" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="600" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="700" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="800" />
-    <font app:font="@font/shippori_antique_b1" app:fontStyle="normal" app:fontWeight="900" />
+    <font app:font="@font/rubik_regular" app:fontStyle="normal" app:fontWeight="100" />
+    <font app:font="@font/rubik_regular" app:fontStyle="normal" app:fontWeight="200" />
+    <font app:font="@font/rubik_regular" app:fontStyle="normal" app:fontWeight="300" />
+    <font app:font="@font/rubik_regular" app:fontStyle="normal" app:fontWeight="400" />
+    <font app:font="@font/rubik_medium" app:fontStyle="normal" app:fontWeight="500" />
+    <font app:font="@font/rubik_medium" app:fontStyle="normal" app:fontWeight="600" />
+    <font app:font="@font/rubik_bold" app:fontStyle="normal" app:fontWeight="700" />
+    <font app:font="@font/rubik_bold" app:fontStyle="normal" app:fontWeight="800" />
+    <font app:font="@font/rubik_bold" app:fontStyle="normal" app:fontWeight="900" />
 </font-family>

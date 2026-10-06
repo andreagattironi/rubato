@@ -10,7 +10,7 @@
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
-  font-family: "Shippori Antique B1", system-ui, -apple-system, sans-serif;
+  font-family: "Rubik", system-ui, -apple-system, sans-serif;
   max-width: 720px; margin-inline: auto; padding-bottom: 4rem;
 }
 header {
